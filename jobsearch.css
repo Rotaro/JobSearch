@@ -1,0 +1,38 @@
+﻿.headers {
+    background-color:#03a9f4;
+    font:bold 1.25em "Arial";
+}
+table {
+    font-family:"Arial";
+    border-collapse:collapse;
+    width:70%;
+    margin:auto;
+}
+tr[origsite=indeed] {
+    background-color:#e1f5fe;
+}
+tr[origsite=monster]  {
+    background-color:#b388ff;
+}
+tr[origsite=duunitori]  {
+    background-color:#4fc3f7;
+}
+tr[origsite=indeed]:hover {
+    background-color:#b3e5fc;
+}
+tr[origsite=monster]:hover {
+    background-color:#7c4dff;
+    font:1.25em;
+}
+tr[origsite=duunitori]:hover {
+    background-color:#03a9f4;
+}
+.date {
+    width:7.5%;
+}
+.site {
+    width:6%;
+}
+.jobtitle {
+    width:15%;
+}
