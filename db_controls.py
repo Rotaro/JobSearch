@@ -52,7 +52,7 @@ class JobEntries:
             INSERT OR IGNORE INTO JobEntries
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", 
             (db_entry[0], db_entry[1], db_entry[2], db_entry[3], 
-             db_entry[4], db_entry[5], db_entry[6]), None, None, None)
+             db_entry[4], db_entry[5], db_entry[6], None, None, None))
         self.conn.commit()
 
     def update_w_dict(self, job_entries_dict):
