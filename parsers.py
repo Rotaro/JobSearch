@@ -1,16 +1,18 @@
 ﻿from html.parser import HTMLParser
 import urllib.request
 from urllib.parse import urlparse
+from urllib.parse import quote_plus
 import re
 
 class URLGenerator:
     """ Generates URLs based on provided search term for different sites. """
     def Indeed_URL(search_term):
-        return "http://www.indeed.fi/jobs?as_and=%s&as_phr=&as_any=&as_not=&as_ttl=&as_cmp=&jt=all&st=&radius=50&l=Helsinki&fromage=any&limit=50&sort=date&psf=advsrch" % search_term
+        search_term = search_term.replace(" ", "%20")
+        return "http://www.indeed.fi/jobs?as_and=%s&as_phr=&as_any=&as_not=&as_ttl=&as_cmp=&jt=all&st=&radius=50&l=Helsinki&fromage=any&limit=50&sort=date&psf=advsrch" % quote_plus(search_term)
     def Monster_URL(search_term):
-        return "http://hae.monster.fi/ty%%C3%%B6paikkoja/?q=%s&cy=fi" % search_term
+        return "http://hae.monster.fi/ty%%C3%%B6paikkoja/?q=%s&cy=fi" % quote_plus(search_term)
     def Duunitori_URL(search_term):
-        return "http://duunitori.fi/tyopaikat/?haku=%s&alue=" % search_term
+        return "http://duunitori.fi/tyopaikat/?haku=%s&alue=" % quote_plus(search_term)
     
 
 

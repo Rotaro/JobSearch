@@ -68,7 +68,7 @@ class JobSearch:
                 datab.set_new_entries(
                     duunitori_parser.get_job_entries(), 'duunitori', search_term)
 
-    def output_results_HTML(self, date_start, date_end, output_name):
+    def output_results(self, date_start, date_end, output_name, output_type):
         """ 
         Outputs job ads from the database as an HTML table. Job ads between
         provided dates are returned. If no dates are provided, all job ads are 
@@ -83,11 +83,13 @@ class JobSearch:
         
         datab = db_controls.JobEntries(self.db_name)
         datab.set_db()
-
         print("Writing to %s from %s." % (output_name, self.db_name))
-        file = codecs.open(output_name, "w", encoding="utf-8")
-        file.write(datab.generate_HTML_table(datab.get_entries(date_start, date_end)))
-        file.close()
+        if (output_type == "html"):
+            file = codecs.open(output_name, "w", encoding="utf-8")
+            file.write(datab.generate_HTML_table(datab.get_entries(date_start, date_end)))
+            file.close()
+        elif (output_type == "csv"):
+            datab.write_CSV_file(datab.get_entries(date_start, date_end), output_name)
 
     def classify_data(self, date_start, date_end):
         """ 
@@ -125,7 +127,9 @@ my_search_terms = [
     'Doctoral',
     'Materials',
     'Materiaali',
-    'Diplomi']
+    'Diplomi',
+    'Machine learning',
+    'Koneoppiminen']
 
                                 
 def main(argv):
@@ -155,6 +159,8 @@ def main(argv):
     view_parser.add_argument('output_name',
         help="Name of file to output view to. The output is in the format of \
             an HTML table.")
+    view_parser.add_argument('-output_type', help="Type of output file, html-table or csv. \
+        If not provided, html-table is used.", default="html")
     #parser for classifing existing entries
     class_parser = subparsers.add_parser('classify', help="Classify entries in db.")
     class_parser.add_argument('start', help="Start date of entries (%d-%m-%Y).")
@@ -170,7 +176,7 @@ def main(argv):
             end = datetime.datetime.strptime(parsed_argv.end, '%d-%m-%Y')
         else:
             end = datetime.date.today()
-        js.output_results_HTML(start, end, parsed_argv.output_name)
+        js.output_results(start, end, parsed_argv.output_name, parsed_argv.output_type)
     elif(parsed_argv.mode == "classify"):
         start = datetime.datetime.strptime(parsed_argv.start, '%d-%m-%Y')
         if (parsed_argv.end):

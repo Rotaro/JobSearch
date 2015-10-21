@@ -16,7 +16,8 @@ class R_environment:
     #R function for cleaning text
     R_functions_str = """ 
         cleanText <- function(text, lang) {
-            corpus = Corpus(VectorSource(text), readerControl = list(language=lang))
+            corpus = Corpus(VectorSource(text), 
+                     readerControl = list(language=lang))
             corpus = tm_map(corpus, tolower)
             corpus = tm_map(corpus, PlainTextDocument)
             corpus = tm_map(corpus, removePunctuation)
@@ -28,10 +29,21 @@ class R_environment:
                      minbucket=minbucket))}
         RFmodel <- function(train_data) 
             {return (randomForest(relevant ~ ., data=train_data))}
-        CARTpredict <- function(CART_model, test_data) 
-            {return (predict(CART_model, newdata=test_data))}
+        CVCARTmodel <- function(train_data) {
+            colnames(train_data) = make.names(colnames(train_data))
+            train_data$relevant = as.factor(make.names(train_data$relevant))
+            tc = trainControl(method="cv", number=10, repeats=10, classProbs = TRUE,
+                              summaryFunction = twoClassSummary)
+            cpGrid = expand.grid(.cp=seq(0.01, 0.5, 0.01))
+            return (train(relevant ~ ., data=train_data, method="rpart", 
+                    trControl=tc, metric="ROC")) }
+        CARTpredict <- function(CART_model, test_data) {
+            colnames(test_data) = make.names(colnames(test_data))
+            return (predict(CART_model, newdata=test_data))}
         confusionMatrix <- function(true_results, predictions, threshold) 
-            {return (table(true_results, predictions[,2] >= threshold))}
+            {return (table(true_results, predictions >= threshold))}
+        confusionMatrixClass <- function(true_results, predictions) 
+            {return (table(true_results, as.data.frame(predictions) == "X1"))}
         splitTerms <- function(terms_data, bool) 
             {return (terms_data == bool)}
         """
@@ -41,23 +53,30 @@ class R_environment:
     def __init__(self):
         #base R assets
         self.utils = rpackages.importr('utils')
-        self.utils.chooseCRANmirror(ind=1)
+        self.utils.chooseCRANmirror(ind=5)
         self.base = rpackages.importr('base')
+        #local library path
         self.base._libPaths("C:/Users/SuperSSD/Documents/R/win-library/3.2")
         #change locale or R uses windows-1252 encoding for r_repr()
         robjects.r['Sys.setlocale']("LC_CTYPE", "C") 
         
         # import needed packages
         # words pre-processing:
-        # tm         - framework for text mining
-        # SnowballC  - stemming 
+        # tm           - Framework for text mining.
+        # SnowballC    - Stemming.
+        # textcat      - Determine language of text.
         # CART model:
-        # rpart      - "Recursive partitioning for classification, regression and 
-        #               survival trees."
-        # rpart.plot - Plotting of CART trees.
+        # rpart        - "Recursive partitioning for classification, regression and 
+        #                survival trees."
+        # rpart.plot   - Plotting of CART trees.
+        # randomForest - Random forest method.
+        # caret        - Classification And REgression Training. Used for cross
+        #                validation.
+        # proc         - UMM
         # Additional:
-        # caTools    - Splitting data into training and test sets intelligently.
-        needed_packages = ["tm", "SnowballC", "rpart", "rpart.plot", "caTools", "randomForest"]
+        # caTools      - Splitting data into training and test sets intelligently.
+        needed_packages = ["tm", "SnowballC", "rpart", "rpart.plot", "caTools", 
+                           "randomForest", "textcat", "caret", "pROC"]
         needed_packages = [x for x in needed_packages if not rpackages.isinstalled(x)]
         if len(needed_packages) > 0:
             self.utils.install_packages(StrVector(needed_packages))
@@ -65,10 +84,14 @@ class R_environment:
         self.SnowballC = rpackages.importr("SnowballC")
         self.caTools = rpackages.importr("caTools")
         self.rpart= rpackages.importr("rpart")
-        self.rpart_plot= rpackages.importr("rpart.plot")
+        self.rpart_plot = rpackages.importr("rpart.plot")
         self.grDevices = rpackages.importr("grDevices")
-        self.randomForest= rpackages.importr("randomForest")
+        self.randomForest = rpackages.importr("randomForest")
+        self.textcat = rpackages.importr("textcat")
+        self.caret = rpackages.importr("caret")
+        self.caret = rpackages.importr("pROC")
         self.R_functions = STAP(self.R_functions_str, "R_functions")
+
 
     def pre_process_words(self, text_list, language):
         """
@@ -80,32 +103,34 @@ class R_environment:
         """
         dtm = self.R_functions.cleanText(StrVector(text_list), language)
 
-        print(self.tm.findFreqTerms(dtm,1).r_repr())
 
         return dtm
 
-    def determine_lang(self, text):
+    def determine_lang(self, title, description):
         """
-        Tries to determine which language a text is. This is done by cleaning up the
-        text and comparing the amount of stopwords in English and Finnish. Defaults
-        to English.
+        Tries to determine which language a text is using the textcat package. 
+        Only differentiates between Finnish and English. Returns English if another
+        language is recognized.
 
         document    - List of strings containing words.
         """
-        corpus = self.tm.Corpus(self.tm.VectorSource(StrVector(text)))
-        corpus = self.tm.tm_map(corpus, 'tolower')
-        corpus = self.tm.tm_map(corpus, 'PlainTextDocument')
-        corpus = self.tm.tm_map(corpus, 'removePunctuation')
-        freq = self.tm.DocumentTermMatrix(corpus)
-        freq = freq[4][0] #4 is ncol attribute, i.e. number of words
-        corpus_en = self.tm.tm_map(corpus, 'removeWords', self.tm.stopwords("English"))
-        freq_en = self.tm.DocumentTermMatrix(corpus_en)
-        freq_en = freq - freq_en[4][0]
-        corpus_fi = self.tm.tm_map(corpus, 'removeWords', self.tm.stopwords("Finnish"))
-        freq_fi = self.tm.DocumentTermMatrix(corpus_fi)
-        freq_fi = freq - freq_fi[4][0]
-        print(freq, freq_fi, freq_en)
-        if (freq_fi > freq_en):
+        language_both = self.textcat.textcat(
+            " ".join([title, description])).r_repr().replace("\"", "")
+        language_title = self.textcat.textcat(title).r_repr().replace("\"", "")
+        language_descrip = self.textcat.textcat(
+            description).r_repr().replace("\"", "")
+
+        #English job titles with Finnish text is sometimes mistaken
+        false_finnish = ["danish", "frisian", "middle_frisian"]
+
+        if (language_both == "english" or language_both == "finnish"):
+            return language_both
+        elif (language_title == "english" or language_title == "finnish"):
+            return language_title
+        elif (language_descrip == "english" or language_descrip == "finnish"):
+            return language_descrip
+        elif (language_both in false_finnish or language_title in false_finnish or
+                language_descrip in false_finnish):
             return "Finnish"
         else:
             return "English"
@@ -132,6 +157,7 @@ class R_environment:
         #as.data.frame(as.matrix(sparse_terms))
         sparse_terms = robjects.r['as.matrix'](sparse_terms)
         sparse_terms = robjects.r['as.data.frame'](sparse_terms)
+        print(robjects.r['rownames'](sparse_terms.r_repr()))
         #add classification column to data frame
         sparse_terms = robjects.r.cbind(sparse_terms, relevant=robjects.IntVector(relevant))
         #split into training and test
@@ -140,23 +166,30 @@ class R_environment:
         train = robjects.r['subset'](sparse_terms, self.R_functions.splitTerms(split, 'TRUE'))
         test = robjects.r['subset'](sparse_terms, self.R_functions.splitTerms(split, 'FALSE'))
         #create model
-        self.CARTmodel = self.R_functions.CARTmodel(train, 15) 
+        #self.CARTmodel = self.R_functions.CARTmodel(train, 15) 
+        self.CARTmodel = self.R_functions.CVCARTmodel(train)
         #self.CARTmodel = self.R_functions.RFmodel(train) 
+        print(self.CARTmodel.r_repr())
+
+        #self.grDevices.png(file="C:/Users/SuperSSD/Documents/R/file.png", width=512, height=512)
+        #robjects.r['prp'](self.CARTmodel)
+        #self.grDevices.dev_off()
         #try model on test set
-        self.grDevices.png(file="C:/Users/SuperSSD/Documents/R/file.png", width=512, height=512)
-        robjects.r['prp'](self.CARTmodel)
-        self.grDevices.dev_off()
         pred = self.R_functions.CARTpredict(self.CARTmodel, test)
-        conf_matrix = self.R_functions.confusionMatrix(test.rx2('relevant'), pred, 0.2)
+        print(pred.r_repr())
+        #conf_matrix = self.R_functions.confusionMatrix(test.rx2('relevant'), pred, 0.4)
+        conf_matrix = self.R_functions.confusionMatrixClass(test.rx2('relevant'), pred)
         accuracy = (conf_matrix[0]+conf_matrix[3]) / (conf_matrix[0] + 
                         conf_matrix[1] + conf_matrix[2] + conf_matrix[3])
-        baseline_accuracy = (conf_matrix[0]) / (conf_matrix[0] + 
+        baseline_accuracy = (conf_matrix[0]+conf_matrix[1]) / (conf_matrix[0] + 
                         conf_matrix[1] + conf_matrix[2] + conf_matrix[3])
+        sensitivity = conf_matrix[3] / (conf_matrix[2] + conf_matrix[3])
         print("\tFALSE\tTRUE")
         print("0\t", conf_matrix[0], "\t", conf_matrix[1])
         print("1\t", conf_matrix[2], "\t", conf_matrix[3])
-        print("%.2f" % accuracy)
-        print("%.2f" % baseline_accuracy)
+        print("model accuracy:\t\t%.2f" % accuracy)
+        print("baseline accuracy:\t%.2f" % baseline_accuracy)
+        print("sensitivity:\t\t%.2f" % sensitivity)
                     
 if(__name__ == "__main__"):
     r = R_environment()
@@ -168,13 +201,13 @@ if(__name__ == "__main__"):
     entries_title_descrip = []
 
     for class_entry in class_entries:
-        title_description = " ".join(class_entry[0:1])
+        
+        title_description = " ".join(class_entry[0:3])
         title_description = re.sub("[Ää]","a", title_description)
         title_description = re.sub("[Öö]","o", title_description)
         title_description = re.sub("[Åå]","å", title_description)
-        entries_relevancy.append(class_entry[3])
+        entries_relevancy.append(class_entry[4])
         entries_title_descrip.append(title_description)
-
-
+        
     dtm = r.pre_process_words(entries_title_descrip, "English")
-    r.create_CART_model(dtm, entries_relevancy, ad_part=1,split_ratio=0.9)
+    r.create_CART_model(dtm, entries_relevancy, ad_part=1,split_ratio=0.8)

@@ -1,5 +1,7 @@
 ﻿import sqlite3
 import datetime
+import csv
+import codecs
 
 class JobEntries:
     """
@@ -75,6 +77,29 @@ class JobEntries:
             tuple(job_entries_dict[key]))
         self.conn.commit()
 
+    def get_classified_entries(self, date_start=datetime.datetime.strptime("01-01-2015", "%d-%m-%Y"), 
+                               date_end=datetime.date.today(), language="English"):
+        """
+        Returns classified database entries between specified dates of
+        the specified language. From the entries, only search term, title,
+        description, language and relevant are returned.
+
+        date_start  - Datetime object. Default is start of year.
+        date_end    - Datetime object. Default is present day.
+        language    - Language of entries. Default is "English."
+        """
+
+        if(self.conn == None):
+            self.conn = sqlite3.connect(self.db_filename)
+        print(language, date_start, date_end)
+        entries = self.conn.execute("SELECT searchterm, title, description, language, \
+                                relevant FROM JobEntries WHERE relevant != 'None' AND \
+                                language == ? AND date >= ? AND date <= ?",
+                                (language, date_start, date_end))
+
+        return entries.fetchall()
+
+
     def get_entries(self, date_1, date_2):
         """ 
         Returns cursor with all job entries between the provided dates. 
@@ -117,7 +142,7 @@ class JobEntries:
                 <th class="url">URL</th>
                 <th class="language">Language</th>
                 <th class="relevant">Relevant</th>
-                <th class="relevant">Recomenndation</th>
+                <th class="relevant">Recommendation</th>
                 <th></th>
             </tr>"""
         for db_entry in db_entries.fetchall():
@@ -144,5 +169,21 @@ class JobEntries:
             row_number = row_number + 1;
         html_start = html_start + "</table></body></html>"
         return html_start
+
+    def write_CSV_file(self, db_entries, filename):
+        """
+        Writes CSV file (Excel style) of job entries from the database.
+        """
+        headers = ["Search term", "Site", "Job title", "Description", "Date", 
+                   "URL", "Language", "Relevant", "Recommendation"]
+        file = codecs.open(filename, "w", encoding="utf-8")
+        csv_writer = csv.writer(file, dialect=csv.excel)
+        csv_writer.writerow(headers)
+        for db_entry in db_entries.fetchall():
+            csv_writer.writerow([db_entry[1], db_entry[0], 
+                db_entry[3], db_entry[5], db_entry[6], db_entry[4], db_entry[7], 
+                db_entry[8], db_entry[9]])
+        file.close()
+
 
 
