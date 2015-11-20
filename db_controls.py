@@ -78,7 +78,7 @@ class JobEntries:
         self.conn.commit()
 
     def get_classified_entries(self, date_start=datetime.datetime.strptime("01-01-2015", "%d-%m-%Y"), 
-                               date_end=datetime.date.today(), language="English"):
+                               date_end=datetime.date.today(), language="English", all_columns=0):
         """
         Returns classified database entries between specified dates of
         the specified language. From the entries, only search term, title,
@@ -92,10 +92,15 @@ class JobEntries:
         if(self.conn == None):
             self.conn = sqlite3.connect(self.db_filename)
         print(language, date_start, date_end)
-        entries = self.conn.execute("SELECT searchterm, title, description, language, \
-                                relevant FROM JobEntries WHERE relevant != 'None' AND \
-                                language == ? AND date >= ? AND date <= ?",
-                                (language, date_start, date_end))
+        if all_columns == 0:
+            entries = self.conn.execute("SELECT searchterm, title, description, language, \
+                                    relevant FROM JobEntries WHERE relevant != 'None' AND \
+                                    language == ? AND date >= ? AND date <= ?",
+                                    (language, date_start, date_end))
+        else:
+            entries = self.conn.execute("SELECT * FROM JobEntries WHERE relevant != 'None' AND \
+                                    language == ? AND date >= ? AND date <= ?",
+                                    (language, date_start, date_end))
 
         return entries.fetchall()
 
@@ -179,10 +184,16 @@ class JobEntries:
         file = codecs.open(filename, "w", encoding="utf-8")
         csv_writer = csv.writer(file, dialect=csv.excel)
         csv_writer.writerow(headers)
-        for db_entry in db_entries.fetchall():
-            csv_writer.writerow([db_entry[1], db_entry[0], 
-                db_entry[3], db_entry[5], db_entry[6], db_entry[4], db_entry[7], 
-                db_entry[8], db_entry[9]])
+        if isinstance(db_entries, list):
+            for db_entry in db_entries:
+                csv_writer.writerow([db_entry[1], db_entry[0], 
+                    db_entry[3], db_entry[5], db_entry[6], db_entry[4], db_entry[7], 
+                    db_entry[8], db_entry[9]])
+        elif isinstance(db_entries, sqlite3.Cursor):
+            for db_entry in db_entries.fetchall():
+                csv_writer.writerow([db_entry[1], db_entry[0], 
+                    db_entry[3], db_entry[5], db_entry[6], db_entry[4], db_entry[7], 
+                    db_entry[8], db_entry[9]])
         file.close()
 
 

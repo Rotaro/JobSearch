@@ -91,6 +91,35 @@ class JobSearch:
         elif (output_type == "csv"):
             datab.write_CSV_file(datab.get_entries(date_start, date_end), output_name)
 
+    def output_classified_results(self, date_start=datetime.datetime.strptime(
+                                        "01-01-2015", "%d-%m-%Y"), 
+                               date_end=datetime.date.today(), language="English", 
+                               output_name="class.csv", output_type="csv"):
+        """ 
+        Outputs classified job ads from the database as an HTML table or csv file. 
+        If no dates are provided, all classified job ads are returned from the database.
+        
+        date_start  - datetime.date object corresponding to a date. If None, all 
+                      entries since the start of the db are returned.
+        date_end    - datetime.date object corresponding to a date. If None, all
+                      job entries since date_start are returned.
+        language    - Language of classified jobs ads to use.
+        output_name - name of the file to store results in. 
+        output_type - "csv" or "html"
+
+        """
+        
+        datab = db_controls.JobEntries(self.db_name)
+        datab.set_db()
+        entries = datab.get_classified_entries(date_start, date_end, language, 1)
+        print("Writing to %s from %s." % (output_name, self.db_name))
+        if (output_type == "html"):
+            file = codecs.open(output_name, "w", encoding="utf-8")
+            file.write(datab.generate_HTML_table(entries))
+            file.close()
+        elif (output_type == "csv"):
+            datab.write_CSV_file(entries, output_name)
+
     def classify_data(self, date_start, date_end):
         """ 
         Starts GUI for classifying database entries between given dates.
