@@ -13,7 +13,7 @@ class JobSearchGUI(tk.Frame):
     """
 
     #db_data structure
-    db_data_columns = ['site', 'search term', 'id', 'title', 'url', 
+    db_data_columns = ['site', 'searchterm', 'id', 'title', 'url', 
                            'description', 'date','language', 'relevant',
                            'recommendation']
     #options to show for classification
@@ -26,7 +26,7 @@ class JobSearchGUI(tk.Frame):
         #make dictionary of data
         self.dataStorage = OrderedDict()
         for entry in db_data:
-            self.dataStorage[entry[2]] = list(entry)
+            self.dataStorage[entry['id']] = [entry[column] for column in self.db_data_columns]
         
         #init window, canvas needed for scrollbars
         self.parent = tk.Tk() #=root
@@ -54,8 +54,8 @@ class JobSearchGUI(tk.Frame):
 
     def populateTable(self):
         """
-        Populates GUI table with database information stored in the object's
-        dataStorage variable. Should only be called while GUI is active.
+        Populates GUI table with database information stored in the instance variable
+        dataStorage. Should only be called while GUI is active!
         """
         if (self.dataStorage == None or self.frame == None):
             return 
@@ -144,8 +144,8 @@ class JobSearchGUI(tk.Frame):
 
     def collectTableData(self):
         """
-        Collects data from GUI table nd stores it in the object variable
-        dataStorage. Should only be called while GUI is active.
+        Collects data from GUI table and stores it in the instance variable
+        dataStorage. Should only be called while GUI is active!
         """
         if (self.dataStorage == None or self.frame == None):
             return 

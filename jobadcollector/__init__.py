@@ -1,0 +1,1 @@
+from .jobadcollector import JobAdCollector

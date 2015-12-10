@@ -193,9 +193,9 @@ class R_environment:
                     
 if(__name__ == "__main__"):
     r = R_environment()
-    db = db_controls.JobEntries("tmp.db")
+    db = db_controls.JobAdsDB("tmp.db")
 
-    class_entries = db.get_classified_entries(language="English")
+    class_entries = db.get_classified_ads(language="English")
 
     entries_relevancy = []
     entries_title_descrip = []
