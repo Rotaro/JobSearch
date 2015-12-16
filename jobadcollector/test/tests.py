@@ -3,7 +3,7 @@ import urllib
 import re
 import datetime
 
-import db_controls
+from ..jobadcollector import db_controls
 
 class DBTests:
     """Various tests for the database class JobAdsDB
@@ -45,11 +45,11 @@ class DBTests:
         if not isinstance(self.db.conn, db_controls.sqlite3.Connection):
             raise ValueError("Failed to connect to database %s." % self.filename)
 
-    def store_job_ads_test(self):
-        """Tests store_job_ads().
+    def store_ads_test(self):
+        """Tests store_ads().
         """
         #store entries
-        self.db.store_job_ads(self.job_ads)
+        self.db.store_ads(self.job_ads)
         #check entries exist and are stored correctly
         ret_job_ads = self.db.get_ads(datetime.date.today()-datetime.timedelta(1),
                                       datetime.date.today())
@@ -68,7 +68,7 @@ class DBTests:
             raise ValueError("Found too many job ads in database.")
 
         #try storing again
-        self.db.store_job_ads(self.job_ads)
+        self.db.store_ads(self.job_ads)
         #check no duplicate entries
         ret_job_ads = self.db.get_ads(datetime.date.today()-datetime.timedelta(1),
                                       datetime.date.today())
@@ -90,7 +90,7 @@ class DBTests:
         self.connect_db_test()
         #test storing entries with garbage keys
         #store entries
-        self.db.store_job_ads(self.job_ads_garbage)
+        self.db.store_ads(self.job_ads_garbage)
         #check entries exist and are stored correctly
         ret_job_ads = self.db.get_ads(datetime.date.today()-datetime.timedelta(1),
                                       datetime.date.today())
@@ -118,7 +118,7 @@ class DBTests:
         """
         #store unclassified entries
         self.connect_db_test()
-        self.db.store_job_ads(self.job_ads)
+        self.db.store_ads(self.job_ads)
         #update entries
         self.db.update_ads(self.job_ads_classified)
         #confirm entries have been updated
@@ -141,7 +141,7 @@ class DBTests:
     def get_classified_ads_test(self):
         #store unclassified ads
         self.connect_db_test()
-        self.db.store_job_ads(self.job_ads)
+        self.db.store_ads(self.job_ads)
         #check no classified ads are returned
         ret_job_ads = self.db.get_classified_ads(all_columns=0)
         if len(ret_job_ads) > 0:
@@ -182,6 +182,6 @@ if __name__ == "__main__":
     test = DBTests()
     test.create_db_class_test()
     test.connect_db_test()
-    test.store_job_ads_test()
+    test.store_ads_test()
     test.update_ads_test()
     test.get_classified_ads_test()

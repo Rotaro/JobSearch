@@ -55,8 +55,13 @@ class JobAdsDB:
                              description varchar(1000), date date,
                              language varchar(100), relevant integer,
                              recommendation integer);""")
+    def disconnect_db(self):
+        """Closes connection to database.
+        """    
+        if (self.db_filename != "" and self.conn != None):
+            self.conn.close()
 
-    def store_job_ads(self, job_ads):
+    def store_ads(self, job_ads):
         """ 
         Stores NEW job ads in the database, existing ones are not updated.
 
@@ -69,14 +74,14 @@ class JobAdsDB:
 
         if(self.conn == None):
             self.connect_db()
+        c = self.conn.cursor()
         #generate date and empty classification columns
         extra_columns = [datetime.date.today(), None, None, None]
         #set right order for entry into database
         for_db = [[job_ad[column] for column in self.columns_plain]+extra_columns
                   for job_ad in job_ads]
         
-        for db_entry in for_db:
-            c = self.conn.cursor()
+        for db_entry in for_db:          
             c.execute("""
             INSERT OR IGNORE INTO JobEntries
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", 
@@ -84,44 +89,54 @@ class JobAdsDB:
 
         self.conn.commit()
 
-    def get_ads(self, date_start, date_end):
+    def get_ads(self, date_start, date_end, language="all"):
         """ 
         Returns job ads between the provided dates. 
 
-        Filters by date. Jobs ads are returned as a list of dictionaries with
-        column names as keys. See class description for details.
+        Filters by date and language. Jobs ads are returned as a list of
+        dictionaries with column names as keys. See class description for 
+        details.
                 
         Arguments:
-        date_start - Earliest date of jobs ads to return. If None, 
-                     all entries up until date_end are returned.
-        date_end   - Latest date of jobs ads to return. If None, 
-                     all entries after date_start are returned.
+        date_start - Datetime instance of earliest date of jobs
+                     ads to return. If None, all entries up until date_end 
+                     are returned.
+        date_end   - Datetime instance of latest date of jobs ads
+                     to return. If None, all entries after date_start are returned.
         If both date_start and date_end are None, all entries are returned.
-
+        language   - Language of job ads. If set to "all", the language column is 
+                     ignored.
         """
+
         if(self.conn == None):
             self.conn = sqlite3.connect(self.db_filename)
         c = self.conn.cursor()
-        if (date_start == None and date_end == None):
-            c.execute("""SELECT * FROM JobEntries""")
-        elif(date_start == None):
-            c.execute("""SELECT * FROM JobEntries WHERE date <= ? """, (date_2,)) 
-        elif(date_end == None):
-            c.execute("""SELECT * FROM JobEntries WHERE date >= ? """, (date_1,)) 
+
+        if language == "all":
+            if (date_start == None and date_end == None):
+                c.execute("""SELECT * FROM JobEntries""")
+            elif(date_start == None):
+                c.execute("""SELECT * FROM JobEntries WHERE date <= ? """, (date_2,)) 
+            elif(date_end == None):
+                c.execute("""SELECT * FROM JobEntries WHERE date >= ? """, (date_1,)) 
+            else:
+                c.execute("""SELECT * FROM JobEntries WHERE date >= ? AND date <= ? """,
+                          (date_start,date_end,)) 
         else:
-            c.execute("""SELECT * FROM JobEntries WHERE date >= ? AND date <= ? """,
-                      (date_start,date_end,)) 
+            if (date_start == None and date_end == None):
+                c.execute("""SELECT * FROM JobEntries WHERE language = ?""", (language,))
+            elif(date_start == None):
+                c.execute("""SELECT * FROM JobEntries 
+                             WHERE language = ? AND date <= ? """, (language,date_2)) 
+            elif(date_end == None):
+                c.execute("""SELECT * FROM JobEntries
+                             WHERE language = ? AND date >= ? """, (language,date_1)) 
+            else:
+                c.execute("""SELECT * FROM JobEntries
+                             WHERE language = ? AND date >= ? AND date <= ? """,
+                          (language, date_start,date_end,)) 
 
-        to_return = []
-        for db_entry in c.fetchall():
-            db_dict = {}
-            i = 0
-            for column in self.columns_classified:
-                db_dict[column] = db_entry[i]
-                i = i + 1
-            to_return.append(db_dict)
-
-        return to_return
+        return [dict(zip(self.columns_classified, db_entry)) for db_entry in c.fetchall()]
 
     def update_ads(self, job_ads):
         """
@@ -136,18 +151,59 @@ class JobAdsDB:
         """
         if(self.conn == None):
             self.connect_db()
+        c = self.conn.cursor()
 
-        #set right order for entry into database
-        for_db = [[job_ad[column] for column in self.columns_classified]
-                  for job_ad in job_ads]
-
-        for db_entry in for_db:
-            c = self.conn.cursor()
+        for ad in job_ads:
             c.execute("""
             REPLACE INTO JobEntries
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", 
-            tuple(db_entry))
+            tuple([ad[column] for column in self.columns_classified]))
 
+        self.conn.commit()
+
+    def update_ads_recommendation(self, job_ads):
+        """
+        Updates the recommendation of job ads.
+
+        Should be used after running a trained random forest model on new job ads.
+
+        Arguments:
+        job_ads - List of dictionaries of job ads with recommendation. Job ads should 
+                  have keys for id and recommendation. See class description for details.
+        """
+        if(self.conn == None):
+            self.connect_db()
+        c = self.conn.cursor()
+
+        for ad in job_ads:
+            c.execute("""
+            UPDATE JobEntries
+            SET recommendation = :recommendation
+            WHERE id = :id""",
+            ad)
+        
+        
+        self.conn.commit()
+
+    def update_ads_language(self, job_ads):
+        """
+        Updates the language of job ads.
+
+        Arguments:
+        job_ads - List of dictionaries of job ads with language. Job ads should 
+                  have keys for id and language. See class description for details.
+        """
+        if(self.conn == None):
+            self.connect_db()
+        c = self.conn.cursor()
+
+        for ad in job_ads:
+            c.execute("""
+            UPDATE JobEntries
+            SET language = :language
+            WHERE id = :id""",
+            ad)
+        
         self.conn.commit()
 
     def get_classified_ads(self, 
@@ -161,8 +217,8 @@ class JobAdsDB:
         as a list of dictionaries with column names as keys.
 
         Arguments:
-        date_start  - Datetime object. Default is start of 2015.
-        date_end    - Datetime object. Default is today.
+        date_start  - Datetime instance. Default is start of 2015.
+        date_end    - Datetime instance. Default is today.
         language    - Language of entries. Default is "English."
         all_columns - Specifies which columns should be retrieved from the database.
                       If 1, all columns are returned (see class description), if 0, 
@@ -175,26 +231,21 @@ class JobAdsDB:
 
         if all_columns == 0:
             columns = ["searchterm" , "title", "description", "language", "relevant"]
-            entries = c.execute("SELECT searchterm, title, description, language, \
-                                    relevant FROM JobEntries WHERE relevant != 'None' AND \
-                                    language == ? AND date >= ? AND date <= ?",
-                                    (language, date_start, date_end))
+            entries = c.execute("""
+                                SELECT searchterm, title, description, language, relevant
+                                FROM JobEntries
+                                WHERE relevant != 'None' AND language == ? 
+                                      AND date >= ? AND date <= ?""",
+                                (language, date_start, date_end))
         else:
             columns = self.columns_classified
-            entries = c.execute("SELECT * FROM JobEntries WHERE relevant != 'None' AND \
-                                    language == ? AND date >= ? AND date <= ?",
-                                    (language, date_start, date_end))
+            entries = c.execute("""
+                                SELECT * FROM JobEntries
+                                WHERE relevant != 'None' AND language == ? 
+                                AND date >= ? AND date <= ?""",
+                                (language, date_start, date_end))
 
-        to_return = []
-        for db_entry in c.fetchall():
-            db_dict = {}
-            i = 0
-            for column in columns:
-                db_dict[column] = db_entry[i]
-                i = i + 1
-            to_return.append(db_dict)
-
-        return to_return
+        return [dict(zip(columns, db_entry)) for db_entry in c.fetchall()]
 
     def write_HTML_file(self, db_entries, filename):
         """

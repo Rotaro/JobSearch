@@ -5,28 +5,30 @@ from collections import OrderedDict
 
 
 
-class JobSearchGUI(tk.Frame):
+class JobAdGUI(tk.Frame):
     """
-    Application with GUI for classifying search results.
+    Application with GUI for classifying job ads used in JobAdsCollector.
 
-    db_data - Database data as a 2D-array or -tuple.
+    Arguments:
+    db_data - Job ads as list of dictionaries. Each dictionary should
+              have keys for all job ad columns detailed in JobAdsCollector.
     """
 
-    #db_data structure
+    #db columns
     db_data_columns = ['site', 'searchterm', 'id', 'title', 'url', 
-                           'description', 'date','language', 'relevant',
-                           'recommendation']
+                       'description', 'date','language', 'relevant',
+                       'recommendation']
     #options to show for classification
     language_options = [None, 'English', 'Finnish']
     relevant_options = [None, 0, 1]
 
     def __init__(self, db_data):
         if (len(db_data) == 0):
-            sys.exit()
+            raise ValueError("No job ads provided to JobAdGUI.")
         #make dictionary of data
-        self.dataStorage = OrderedDict()
+        self.ad_storage = OrderedDict()
         for entry in db_data:
-            self.dataStorage[entry['id']] = [entry[column] for column in self.db_data_columns]
+            self.ad_storage[entry['id']] = [entry[column] for column in self.db_data_columns]
         
         #init window, canvas needed for scrollbars
         self.parent = tk.Tk() #=root
@@ -55,9 +57,9 @@ class JobSearchGUI(tk.Frame):
     def populateTable(self):
         """
         Populates GUI table with database information stored in the instance variable
-        dataStorage. Should only be called while GUI is active!
+        ad_storage. Should only be called while GUI is active!
         """
-        if (self.dataStorage == None or self.frame == None):
+        if (self.ad_storage == None or self.frame == None):
             return 
         #clear old widgets if necessary
         if (len(self.frame._widgets) != 0):
@@ -90,29 +92,29 @@ class JobSearchGUI(tk.Frame):
         button.grid(row=2, column=len(self.db_data_columns), sticky="nsew", 
                     padx=1, pady=1)
         
-        #process database data     
+        #process job ads   
         i=1
-        for id in self.dataStorage:
+        for id in self.ad_storage:
             current_row = []
-            print(self.dataStorage[id][8])
+            print(self.ad_storage[id][8])
             #if not classified
-            if (self.dataStorage[id][8] == None):
-                for column in range(0, len(self.dataStorage[id])):
+            if (self.ad_storage[id][8] == None):
+                for column in range(0, len(self.ad_storage[id])):
                     #Divide table text into lines and set widths of columns. Also 
                     #initialize optionmenus for language and relevant columns.
                     if(self.db_data_columns[column] == "url"):
                         label = tk.Label(self.frame, text = "%s" % "\n".join(
-                            textwrap.wrap(self.dataStorage[id][column], 100)),
+                            textwrap.wrap(self.ad_storage[id][column], 100)),
                             borderwidth=0,width=1)
                         label.grid(row=i, column=column, sticky="nsew", padx=1, pady=1)
                     elif(self.db_data_columns[column] == "description"):
                         label = tk.Label(self.frame, text = "%s" %
-                            "\n".join(textwrap.wrap(self.dataStorage[id][column], 100)),
+                            "\n".join(textwrap.wrap(self.ad_storage[id][column], 100)),
                             borderwidth=0)
                         label.grid(row=i, column=column, sticky="nsew", padx=1, pady=1)
                     elif(self.db_data_columns[column] == "language"):
                         variable = tk.StringVar(self.frame)
-                        variable.set(self.dataStorage[id][column])
+                        variable.set(self.ad_storage[id][column])
                         label = tk.OptionMenu(self.frame, variable,
                                               *self.language_options)
                         #store as attribute to access later (might be another way?)
@@ -120,7 +122,7 @@ class JobSearchGUI(tk.Frame):
                         label.grid(row=i, column=column, sticky="nsew", padx=1, pady=1)
                     elif(self.db_data_columns[column] == "relevant"):
                         variable = tk.StringVar(self.frame)
-                        variable.set(self.dataStorage[id][column])
+                        variable.set(self.ad_storage[id][column])
                         label = tk.OptionMenu(self.frame, variable, 
                                               *self.relevant_options)
                         #store as attribute to access later (might be another way?)
@@ -128,13 +130,15 @@ class JobSearchGUI(tk.Frame):
                         label.grid(row=i, column=column, sticky="nsew", padx=1, pady=1)
                     else:
                         label = tk.Label(self.frame, text = "%s" % 
-                                         (self.dataStorage[id][column]), borderwidth=0)
+                                         (self.ad_storage[id][column]), borderwidth=0)
                         label.grid(row=i, column=column, sticky="nsew", padx=1, pady=1)
                     current_row.append(label)
                 self.frame._widgets.append(current_row)
                 print(i)
                 i = i + 1
-               
+        print(self.parent.winfo_width())
+        print(self.frame.winfo_width())
+        print(self.canvas.winfo_width())
 
     def onFrameConfigure(self, event):
         """
@@ -145,21 +149,21 @@ class JobSearchGUI(tk.Frame):
     def collectTableData(self):
         """
         Collects data from GUI table and stores it in the instance variable
-        dataStorage. Should only be called while GUI is active!
+        ad_storage. Should only be called while GUI is active!
         """
-        if (self.dataStorage == None or self.frame == None):
+        if (self.ad_storage == None or self.frame == None):
             return 
         else:
             for i in range(1, len(self.frame._widgets)):
                 id = self.frame._widgets[i][2]["text"]
                 if (self.frame._widgets[i][7].variable.get() == 'None'):
-                    self.dataStorage[id][7] = None
+                    self.ad_storage[id][7] = None
                 else:
-                    self.dataStorage[id][7] = self.frame._widgets[i][7].variable.get();
+                    self.ad_storage[id][7] = self.frame._widgets[i][7].variable.get();
                 if (self.frame._widgets[i][8].variable.get() == 'None'):
-                    self.dataStorage[id][8] = None
+                    self.ad_storage[id][8] = None
                 else:
-                    self.dataStorage[id][8] = self.frame._widgets[i][8].variable.get();
+                    self.ad_storage[id][8] = self.frame._widgets[i][8].variable.get();
 
      
     def storeReloadData(self):
@@ -167,21 +171,21 @@ class JobSearchGUI(tk.Frame):
         Stores data from GUI table and reloads entries which haven't been
         classified. Should only be called while GUI is active.
         """
-        if (self.dataStorage == None or self.frame == None):
+        if (self.ad_storage == None or self.frame == None):
             return 
-        print("length ", len(self.frame._widgets), len(self.dataStorage))
+        print("length ", len(self.frame._widgets), len(self.ad_storage))
         self.collectTableData()
         print("collected")
-        print("length ", len(self.frame._widgets), len(self.dataStorage))
+        print("length ", len(self.frame._widgets), len(self.ad_storage))
         self.populateTable()
         print("populated")
-        print("length ", len(self.frame._widgets), len(self.dataStorage))
+        print("length ", len(self.frame._widgets), len(self.ad_storage))
 
     def storeDataExit(self):
         """
         Stores data from GUI table and exits.
         """
-        if (self.dataStorage == None or self.frame == None):
+        if (self.ad_storage == None or self.frame == None):
             return 
         self.collectTableData()
         self.parent.destroy()
