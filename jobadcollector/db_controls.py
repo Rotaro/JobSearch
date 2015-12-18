@@ -58,7 +58,7 @@ class JobAdsDB:
     def disconnect_db(self):
         """Closes connection to database.
         """    
-        if (self.db_filename != "" and self.conn != None):
+        if (self.conn != None):
             self.conn.close()
 
     def store_ads(self, job_ads):
