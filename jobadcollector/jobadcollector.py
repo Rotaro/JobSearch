@@ -1,6 +1,14 @@
 ﻿import datetime
-from . import parsers, db_controls, db_gui, classification
+import random
+import time
+from . import parsers, db_controls, db_gui
 
+try: 
+    CLASSIFICATION = True
+    from . import classification
+except ImportError:
+    CLASSIFICATION = False
+    print("""Classification module import failed. Classification functions are disabled.""")
 
 class JobAdCollector:
     """Class for operating job ad collections.
@@ -24,7 +32,7 @@ class JobAdCollector:
     sites = ['indeed', 'duunitori', 'monster']
     Rlibpath = ""
 
-    def __init__(self, search_terms, db_name, classification=False, 
+    def __init__(self, search_terms, db_name, classification=CLASSIFICATION, 
                  Rlibpath="C:/Users/SuperSSD/Documents/R/win-library/3.2"):
         if (not isinstance(search_terms, list) or db_name == ""):
             raise ValueError("Invalid arguments for JobAdCollector, search_terms \
@@ -33,7 +41,6 @@ class JobAdCollector:
         self.db_name = db_name
         self.classification = classification
         if classification == True:
-            from . import classification
             self.Rlibpath = Rlibpath
 
     def start_search(self, search_term=None):
