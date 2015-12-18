@@ -284,6 +284,8 @@ class RRFClassification:
             search_terms = self.search_terms
         if sites == None:
             sites = self.sites
+        print(search_terms)
+        print(sites)
         ##parameters during training
         #typical value
         splitratio = 0.7
@@ -348,6 +350,8 @@ class RRFClassification:
         if sites == None:
             sites = self.sites
 
+        print(search_terms)
+        print(sites)
         #convert to dataframe and clean ads
         dataf = self.create_R_dataframe(ads, self.class_columns)
         ids = dataf.rx2('id') 
