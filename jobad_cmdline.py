@@ -112,31 +112,32 @@ def main(argv):
         end = datetime.date.today()
 
     if parsed_argv.mode == "Rfunc":
-        js = jobadcollector.JobAdCollector(my_search_terms, parsed_argv.db_name, classification = True)
+        jac = jobadcollector.JobAdCollector(my_search_terms, parsed_argv.db_name, classification = True)
         if parsed_argv.Rfunmode == "detlang":
-            js.det_lang_store_ads(start, end)
+            jac.det_lang_store_ads(start, end)
         if parsed_argv.Rfunmode == "train":
-            RFC = js.train_model(parsed_argv.language, start, end)
-            js.save_model(RFC, parsed_argv.output_name)
+            RFC = jac.train_model(parsed_argv.language, start, end)
+            jac.save_model(RFC, parsed_argv.output_name)
         if parsed_argv.Rfunmode == "recomm":
-            RFC = js.load_model(parsed_argv.language, parsed_argv.input_name)
-            js.recomm_store_ads(RFC, parsed_argv.language, start, end)
+            RFC = jac.load_model(parsed_argv.language, parsed_argv.input_name)
+            jac.recomm_store_ads(RFC, parsed_argv.language, start, end)
         if parsed_argv.Rfunmode == "search":
             start = datetime.datetime.today() - datetime.timedelta(days=1)
             end = datetime.datetime.today()
-            js.start_search()
-            js.det_lang_store_ads(start, end)
-            RFC = js.load_model(parsed_argv.language, parsed_argv.input_name)
-            js.recomm_store_ads(RFC, parsed_argv.language, start, end)
+            jac.start_search()
+            jac.det_lang_store_ads(start, end)
+            RFC = jac.load_model(parsed_argv.language, parsed_argv.input_name)
+            jac.recomm_store_ads(RFC, parsed_argv.language, start, end)
 
     else:
-        js = jobadcollector.JobAdCollector(my_search_terms, parsed_argv.db_name)
+        jac = jobadcollector.JobAdCollector(my_search_terms, parsed_argv.db_name)
         if parsed_argv.mode == "view":
-            js.output_results(start, end, parsed_argv.output_name, parsed_argv.output_type)
+            jac.output_results(start, end, parsed_argv.output_name, parsed_argv.output_type)
         elif parsed_argv.mode == "classify":
-            js.classify_data(start, end)
+            jac.classify_data(start, end)
         elif parsed_argv.mode == "search":
-            js.start_search()
+            if ("search_term" in parsed_argv):
+                jac.start_search(parsed_argv.search_term)
 
 if (__name__ == "__main__"):
     main(sys.argv)

@@ -44,33 +44,22 @@ class JobAdCollector:
             self.Rlibpath = Rlibpath
 
     def start_search(self, search_term=None):
-        """Starts search for job advertisements using provided search terms. 
+        """Starts search for job advertisements using provided search term(s). 
 
         HTML requests are randomly delayed by 3 to 5 seconds. 
 
-        search_term - Search term to use. If None, instance variable set during
-                      initialization is used.
+        search_term - Search term to use. If None, instance variable search_terms,
+                      set during initialization, is used.
         """
         random.seed(1222)
         datab = db_controls.JobAdsDB(self.db_name)
         datab.connect_db()
         if (search_term != None):
-            print("Searching for \"%s\"." % search_term)
-            time.sleep(random.randint(3,5))
-            monster_parser = parsers.MonsterParser()
-            indeed_parser = parsers.IndeedParser()
-            duunitori_parser = parsers.DuunitoriParser()
-            indeed_parser.parse_URL(parsers.URLGenerator.Indeed_URL(search_term))
-            monster_parser.parse_URL(parsers.URLGenerator.Monster_URL(search_term))
-            duunitori_parser.parse_URL(parsers.URLGenerator.Duunitori_URL(search_term))
-            datab.store_ads(indeed_parser.get_job_ads().copy().update(
-                        {'site': 'indeed', 'search_term' :search_term}))
-            datab.store_ads(monster_parser.get_job_ads().copy().update(
-                        {'site': 'monster', 'search_term' :search_term}))
-            datab.store_ads(duunitori_parser.get_job_ads().copy().update(
-                        {'site': 'duunitori', 'search_term' :search_term}))
-        elif isinstance(self.search_terms, list):
-            for search_term in self.search_terms:
+            searchables = [search_term]
+        else:
+            searchables = self.search_terms
+        if isinstance(searchables, list):
+            for search_term in searchables:
                 print("Searching for \"%s\"." % search_term)
                 time.sleep(random.randint(3,5))
                 monster_parser = parsers.MonsterParser()
@@ -82,15 +71,15 @@ class JobAdCollector:
                     parsers.URLGenerator.Monster_URL(search_term))
                 duunitori_parser.parse_URL(
                     parsers.URLGenerator.Duunitori_URL(search_term))
-                #add site and search term to job ads (modified parser instance!)
-                [job_ad.update({'site': 'indeed', 'searchterm': search_term}) 
-                for job_ad in indeed_parser.get_job_ads()]
+                #add site and search term to job ads (modifies parser instance!)
+                for job_ad in indeed_parser.get_job_ads():
+                    job_ad.update({'site': 'indeed', 'searchterm': search_term}) 
                 datab.store_ads(indeed_parser.get_job_ads())
-                [job_ad.update({'site': 'monster', 'searchterm': search_term}) 
-                for job_ad in monster_parser.get_job_ads()]
+                for job_ad in monster_parser.get_job_ads():
+                    job_ad.update({'site': 'monster', 'searchterm': search_term}) 
                 datab.store_ads(monster_parser.get_job_ads())
-                [job_ad.update({'site': 'duunitori', 'searchterm': search_term}) 
-                for job_ad in duunitori_parser.get_job_ads()]
+                for job_ad in duunitori_parser.get_job_ads():
+                    job_ad.update({'site': 'duunitori', 'searchterm': search_term}) 
                 datab.store_ads(duunitori_parser.get_job_ads())
 
     def output_results(self, date_start, date_end, output_name, output_type):

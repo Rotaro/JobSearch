@@ -91,7 +91,7 @@ class JobAdsDB:
 
     def get_ads(self, date_start, date_end, language="all"):
         """ 
-        Returns job ads between the provided dates. 
+        Returns job ads from the database.
 
         Filters by date and language. Jobs ads are returned as a list of
         dictionaries with column names as keys. See class description for 
@@ -222,7 +222,7 @@ class JobAdsDB:
         language    - Language of entries. Default is "English."
         all_columns - Specifies which columns should be retrieved from the database.
                       If 1, all columns are returned (see class description), if 0, 
-                      only search term, title, description, language and relevant.
+                      only site, search term, title, description, language and relevant.
         """
 
         if(self.conn == None):
@@ -230,9 +230,9 @@ class JobAdsDB:
         c = self.conn.cursor()
 
         if all_columns == 0:
-            columns = ["searchterm" , "title", "description", "language", "relevant"]
+            columns = ["site", "searchterm" , "title", "description", "language", "relevant"]
             entries = c.execute("""
-                                SELECT searchterm, title, description, language, relevant
+                                SELECT site, searchterm, title, description, language, relevant
                                 FROM JobEntries
                                 WHERE relevant != 'None' AND language == ? 
                                       AND date >= ? AND date <= ?""",
