@@ -3,7 +3,7 @@ A simple program to combine job search results from several job advertisement si
 
 Currently the program has parsers for indeed.fi, monster.fi and duunitori.fi. 
 The program gathers job advertisements from these three sites using keywords provided. 
-The results of the keyword searches are stored in a local sqlite database, which can be viewed as an html or csv table. Additionally, the program supports classifying job ads as relevant or not. The program can then train a random forest model to provide recommendations for new ads.
+The results of the keyword searches are stored in a local sqlite database, which can be viewed as an html or csv table. Additionally, based on previous user classifications, the program supports recommendation of new job ads using machine learning.
 
 Included in the repository is a command line interface, jobad_cmdline.py. The interface has the following modes:
 
