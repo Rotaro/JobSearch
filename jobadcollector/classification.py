@@ -1,13 +1,11 @@
 ﻿import rpy2.robjects as robjects
 from rpy2.robjects.vectors import StrVector, FloatVector, IntVector
-import rpy2.robjects.packages as rpackages
-from rpy2.robjects.packages import SignatureTranslatedAnonymousPackage as STAP 
+from rpy2.robjects.packages import SignatureTranslatedAnonymousPackage as STAP, importr
 import datetime
+import time
 
-
-class RRFClassification:
-    """
-    Class for classifying job ads as relevant or not.
+class JobAdClassification:
+    """Classification of job ads as relevant or not using R and rpy2.
 
     This class can train a random forest model to predict the relevancy of 
     new job ads. The model can be stored in a file for later use.
@@ -55,11 +53,9 @@ class RRFClassification:
             class_data$site <- as.factor(class_data$site)
             levels(class_data$site) <- 
                  c(levels(class_data$site), sites[!(sites %in% levels(class_data$site))])
-            print(summary(class_data$site))
             class_data$searchterm <- as.factor(class_data$searchterm)
             levels(class_data$searchterm) <- 
                  c(levels(class_data$searchterm), search_terms[!(search_terms %in% levels(class_data$searchterm))])
-            print(summary(class_data$searchterm))
 
             return(class_data)
         }      
@@ -132,7 +128,9 @@ class RRFClassification:
               if (thold != -1) {
                 preds <- predictions >= thold
               }
-              if (max(predictions) == 2) {
+              #if factor levels are 2,1 instead of 0,1 (will fail if 
+              #actual levels are 0,1 but there are no 0 predictions)
+              if (max(predictions) == 2 || min(predictions) == 1) {
                     preds <- predictions-1
               }
               
@@ -151,6 +149,7 @@ class RRFClassification:
               #error measure
               err <- sum((actual - preds)^2)
               if (printb == 1) {
+                cat("Model characteristics:", "\n")
                 cat("Accuracy", acc, "\n")
                 cat("Sensitivity", sens, "\n")
                 cat("Fscore", fscore, "\n")
@@ -174,57 +173,51 @@ class RRFClassification:
             save(object, file=filename)
         }
         """
-    #columns needed for training model
-    train_columns = ["site", "searchterm", "title", "description", "relevant"]
-    #columns needed for classifying new job ads
-    class_columns = ["id", "site", "searchterm", "title", "description"]
-
-    language = ""
-    RFmodel = None
 
     def __init__(self, Rlibpath, search_terms, sites, language):
-        self.language = language
-        #factor levels
-        self.search_terms = search_terms
-        self.sites = sites
+        self._RFmodel = None
+        self._language = language
+        self._search_terms = search_terms
+        self._sites = sites
+        #columns needed for training model
+        self._train_columns = ["site", "searchterm", "title", "description", "relevant"]
+        #columns needed for classifying new job ads
+        self._class_columns = ["id", "site", "searchterm", "title", "description"]
+        #random forest model parameters
+        self._threshold = 0.3
+        self._splitratio = 0.7
         #base R assets
-        self.utils = rpackages.importr('utils')
+        self.utils = robjects.packages.importr("utils")
         self.utils.chooseCRANmirror(ind=5) #randomly chosen mirror
-        self.base = rpackages.importr('base')
+        self.base = robjects.packages.importr("base")
         #local library path
         self.base._libPaths(Rlibpath)
-        #change locale or R uses windows-1252 encoding for r_repr()
+        #change locale to use utf-8 for r_repr()
         robjects.r['Sys.setlocale']("LC_CTYPE", "C") 
         
-        # import needed packages
-        # words pre-processing:
         # tm           - Framework for text mining.
         # SnowballC    - Stemming.
         # textcat      - Determining language of text.
         #
         # randomForest - Random forest.
-        # caret        - Classification And REgression Training. Used for cross
-        #                validation.
-        # Additional:
         # caTools      - Splitting data into training and test sets intelligently.
-        needed_packages = ["tm", "SnowballC", "caTools", "randomForest", "textcat", 
-                           "caret", "stringr"]
-        needed_packages = [package for package in needed_packages 
-                           if not rpackages.isinstalled(package)]
-        load_packages = ["tm", "SnowballC", "caTools", "randomForest", "textcat", 
-                         "caret", "stringr", "grDevices"]
-        #load and install
-        if len(needed_packages) > 0:
-            self.utils.install_packages(StrVector(needed_packages))
+        # stringr      - String manipulation
+        needed_packages = ["tm", "SnowballC", "textcat", "randomForest", "caTools",
+                           "stringr"]
+        #install packages
+        to_install = [package for package in needed_packages 
+                           if not robjects.packages.isinstalled(package)]
+        if len(to_install) > 0:
+            self.utils.install_packages(StrVector(to_install))
+        #load packages
+        self.loaded_packages = [robjects.packages.importr(package) 
+                                for package in needed_packages]
+        self.loaded_packages = dict(zip(needed_packages,  self.loaded_packages))
+        #load R functions
+        self.R_functions = STAP(
+                self.R_functions_str, "R_functions")
 
-        self.loaded_packages = [rpackages.importr(package) 
-                                for package in load_packages]
-        self.loaded_packages = dict(zip(load_packages, self.loaded_packages))
-
-        self.R_functions = STAP(self.R_functions_str, "R_functions")
-
-
-    def remove_diacritics(self, string):
+    def _remove_diacritics(self, string):
         """Removes all Swedish (Finnish) diacritics from a string.
         """
         if isinstance(string, str):
@@ -236,20 +229,19 @@ class RRFClassification:
         return string
     
     def create_R_dataframe(self, class_ads, include_columns):
-        """Converts structure used in the local sqlite (see JobAdsDB class) to
-        an R dataframe.
+        """Converts job ads to R dataframe.
 
         Arguments:
-        class_ads       - Job ads from the local database as a list of dictionaries.
+        class_ads       - Job ads from the local database (see JobAdsDB) as a list 
+                          of dictionaries.
         include_columns - Columns which are included in the dataframe. Each column
                           has to have a corresponding key in the job ad dictionaries.    
         """
 
-        #modify structure to type {column:[rows]}
-        
+        #modify structure to type {column:[rows]}   
         class_ads_dataf = {}
         for column in include_columns:
-            class_ads_dataf[column] = [self.remove_diacritics(ad[column]) 
+            class_ads_dataf[column] = [self._remove_diacritics(ad[column]) 
                                        for ad in class_ads]
             if (column == "relevant"):
                 class_ads_dataf[column] = IntVector(class_ads_dataf[column])
@@ -258,10 +250,10 @@ class RRFClassification:
              
         return robjects.DataFrame(class_ads_dataf)
 
-    def train_model(self, class_ads, language, search_terms=None, sites=None):
+    def train_model(self, class_ads, language=None, search_terms=None, sites=None):
         """Trains a random forest model for classification of job ad relevance.
 
-        The model is stored in the RRFClassification instance variable RFmodel.
+        The model is stored in the JobAdClassification instance variable _RFmodel.
 
         Arguments:
         class_ads    - Classified ads used to the train the model. Ads should be
@@ -269,44 +261,47 @@ class RRFClassification:
                        title, description and relevant. See the JobAdsDB class for
                        details.
         language     - Language of job ads. Needed for proper stemming and removal 
-                       of stopwords.
+                       of stopwords. If None, the language specified during
+                       instance creation is used.
         search_terms - List of ALL search terms used, even if no ads were found
                        with them. These are needed to have all necessary factor
-                       levels in the model.
+                       levels in the model. If None, the search terms specified during
+                       instance creation is used.
         sites        - List of ALL sites searched, even if no ads were found on 
                        on the sites. These are needed to have all necessary factor
-                       levels in the model.
-        
+                       levels in the model. If None, the sites specified during
+                       instance creation is used.
         """
         if language == None:
-            language = self.language
+            language = self._language
         if search_terms == None:
-            search_terms = self.search_terms
+            search_terms = self._search_terms
         if sites == None:
-            sites = self.sites
-        print(search_terms)
-        print(sites)
-        ##parameters during training
+            sites = self._sites
+        ##parameters for training
         #typical value
-        splitratio = 0.7
+        splitratio = self._splitratio
         #gave best F-score during parameter sweeping
-        threshold = 0.3
+        threshold = self._threshold
 
         #convert to dataframe and clean ads
-        dataf = self.create_R_dataframe(class_ads, self.train_columns)
+        dataf = self.create_R_dataframe(class_ads, self._train_columns)
         dataf = self.R_functions.cleanJobAds(dataf, StrVector(search_terms), StrVector(sites))
         dataf = self.R_functions.createJoinDTM(dataf, language.lower())
 
         #create training and testing data sets
-        split = robjects.r['sample.split'](dataf.rx2('relevant'), splitratio)
-        train = robjects.r['subset'](dataf, self.R_functions.splitTerms(split, 'TRUE'))
-        test = robjects.r['subset'](dataf, self.R_functions.splitTerms(split, 'FALSE'))
-
+        if (splitratio != 1.0):
+            split = robjects.r['sample.split'](dataf.rx2('relevant'), splitratio)
+            train = robjects.r['subset'](dataf, self.R_functions.splitTerms(split, 'TRUE'))
+            test = robjects.r['subset'](dataf, self.R_functions.splitTerms(split, 'FALSE'))
+        else:
+            train = dataf
         #train model
-        self.RFmodel = self.R_functions.RFmodel(train, FloatVector([1-threshold, threshold])) 
+        self._RFmodel = self.R_functions.RFmodel(train, FloatVector([1-threshold, threshold])) 
         #test on testing set
-        pred = self.R_functions.RFpred(self.RFmodel, test)
-        conf_matrix = self.R_functions.model_eval(pred, test.rx2('relevant'), -1, 1)
+        if (splitratio != 1.0):
+            pred = self.R_functions.RFpred(self._RFmodel, test)
+            conf_matrix = self.R_functions.model_eval(pred, test.rx2('relevant'), -1, 1)
 
     def save_model(self, filename):
         """Saves instance model to file for later use.
@@ -315,7 +310,7 @@ class RRFClassification:
         filename   - Name of file to save model in.
         """
 
-        self.R_functions.saveFile(self.RFmodel, filename)
+        self.R_functions.saveFile(self._RFmodel, filename)
         
     def load_model(self, filename):
         """Loads random forest classification model from file.
@@ -324,7 +319,7 @@ class RRFClassification:
         filename   - Name of file to load model from.
         """
 
-        self.RFmodel = robjects.r['get'](robjects.r['load'](filename))
+        self._RFmodel = robjects.r['get'](robjects.r['load'](filename))
 
 
     def classify_ads(self, ads, language=None,
@@ -344,23 +339,23 @@ class RRFClassification:
                        are the same as the instance sites variable).
         """
         if language == None:
-            language = self.language
+            language = self._language
         if search_terms == None:
-            search_terms = self.search_terms
+            search_terms = self._search_terms
         if sites == None:
-            sites = self.sites
+            sites = self._sites
 
         print(search_terms)
         print(sites)
         #convert to dataframe and clean ads
-        dataf = self.create_R_dataframe(ads, self.class_columns)
+        dataf = self.create_R_dataframe(ads, self._class_columns)
         ids = dataf.rx2('id') 
         dataf = self.R_functions.cleanJobAds(dataf, StrVector(search_terms), StrVector(sites))
         dataf = self.R_functions.createJoinDTM(dataf, language.lower())
-        dataf = self.R_functions.prepNewAds(self.RFmodel, dataf)
+        dataf = self.R_functions.prepNewAds(self._RFmodel, dataf)
 
         #classify ads
-        pred = self.R_functions.RFpred(self.RFmodel, dataf)
+        pred = self.R_functions.RFpred(self._RFmodel, dataf)
 
         #combine results in list of dictionaries
         results = [{"id" : ids[i], "recommendation": int(pred[i])-1} 
@@ -369,7 +364,7 @@ class RRFClassification:
         return results
         
 
-    def determine_lang(self, title, description):
+    def _determine_lang(self, title, description):
         """
         Tries to determine which language a job ad is using the textcat package. 
         Only differentiates between Finnish and English; returns English if another
@@ -412,63 +407,8 @@ class RRFClassification:
         """
 
         results = [{"id": ad["id"], 
-                    "language": self.determine_lang(ad["title"], ad["description"])}
+                    "language": self._determine_lang(ad["title"], ad["description"])}
                    for ad in ads]
 
         return results
 
-
-if(__name__ == "__main__"):
-    import db_controls
-    search_terms = ['Analyytikko',
-                                'Analyst',
-                                'Physics',
-                                'Fysiikka',
-                                'Fyysikko',
-                                'Science',
-                                'M.Sc',
-                                'FM',
-                                'Entry',
-                                'First',
-                                'Graduate',
-                                'Associate',
-                                'Matlab',
-                                'Tohtorikoulutettava',
-                                'Doctoral',
-                                'Materials',
-                                'Materiaali',
-                                'Diplomi',
-                                'Machine learning',
-                                'Koneoppiminen']
-    sites = ['duunitori', 'monster', 'indeed']
-    r = RRFClassification("C:/Users/SuperSSD/Documents/R/win-library/3.2", search_terms, sites)
-    db = db_controls.JobAdsDB("tmp.db")
-    #clean and transform data for creation of R dataframe
-    class_ads = db.get_classified_ads(language="English", all_columns=1)
-
-    RFmodel = r.train_model(class_ads, "English", search_terms, sites)
-    r.save_model(RFmodel, "wutwut.test")
-    RFmodel2 = r.load_model("wutwut.test")
-
-    ads = db.get_ads(datetime.datetime.strptime("01-12-2015", "%d-%m-%Y"), 
-                     datetime.datetime.strptime("05-12-2015", "%d-%m-%Y"))
-    ##create dataframe 
-    pred = r.classify_ads(ads, RFmodel, "English")
-    pred2 = r.classify_ads(ads, RFmodel2, "English")
-    ##print(pred.r_repr().encode("unicode_escape"))
-    for i in range(0, len(pred)):
-        print(pred[i] == pred2[i])
-
-    #for i in range(0, len(ads)):
-    #    print(i, len(ads))
-    #    print(str(ads[i]['title']).encode("unicode_escape"), 
-    #          float(pred[i]) >= 0.3)
-              
-    #conf_matrix = r.R_functions.model_eval(pred, new_dataf.rx2('relevant'), 0.3, 1)
-    #print(conf_matrix.r_repr())
-
-    #RFmodel2 = robjects.r['load']('randomForestModel.dat')
-    #RFmodel2 = robjects.r['get'](RFmodel2)
-    #pred = r.R_functions.RFpred(RFmodel2, test)
-    #conf_matrix = r.R_functions.model_eval(pred, test.rx2('relevant'), 0.3, 1)
-    #print(conf_matrix.r_repr())

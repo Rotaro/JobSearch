@@ -27,10 +27,6 @@ class JobAdCollector:
                      rpy2 installed).
     Rlibpath       - ONLY if classification is True. Path to local R libraries.
     """
-    db_name = ""
-    search_terms = []
-    sites = ['indeed', 'duunitori', 'monster']
-    Rlibpath = ""
 
     def __init__(self, search_terms, db_name, classification=CLASSIFICATION, 
                  Rlibpath="C:/Users/SuperSSD/Documents/R/win-library/3.2"):
@@ -40,6 +36,8 @@ class JobAdCollector:
         self.search_terms = search_terms
         self.db_name = db_name
         self.classification = classification
+        self.sites = ['indeed', 'duunitori', 'monster']
+        self.Rlibpath = ""
         if classification == True:
             self.Rlibpath = Rlibpath
 
@@ -155,7 +153,7 @@ class JobAdCollector:
 
         All job ads between provided dates are included in the training. 
 
-        Returns RRFClassification instance with model, search_terms and sites set.
+        Returns JobAdClassification instance with model, search_terms and sites set.
         Model can be found under RFmodel.
 
         Arguments:
@@ -169,7 +167,7 @@ class JobAdCollector:
         if (self.classification == False):
             raise EnvironmentError("Classification not enabled in JobAdCollector")
         
-        RFC = classification.RRFClassification(self.Rlibpath, self.search_terms, 
+        RFC = classification.JobAdClassification(self.Rlibpath, self.search_terms, 
                                                self.sites, language)
         datab = db_controls.JobAdsDB(self.db_name)
         datab.connect_db()
@@ -197,7 +195,7 @@ class JobAdCollector:
                                     
         datab = db_controls.JobAdsDB(self.db_name)
         datab.connect_db()
-        RFC = classification.RRFClassification(self.Rlibpath, [], [], "")
+        RFC = classification.JobAdClassification(self.Rlibpath, [], [], "")
 
         ads = datab.get_ads(date_start, date_end)
         lang_ads = RFC.det_lang_ads(ads)
@@ -209,7 +207,7 @@ class JobAdCollector:
         in the database.
 
         Arguments:
-        RFC         - RRFClassification instance. Use train_model or load_model
+        RFC         - JobAdClassification instance. Use train_model or load_model
                       for initialization.
         language    - Language of ads.
         date_start  - Datetime instance. If None, all job ads since the
@@ -234,7 +232,7 @@ class JobAdCollector:
         The file is saved using R's save function.
 
         Arguments:
-        RFC      - RRFClassification instance. Use train_model or load_model
+        RFC      - JobAdClassification instance. Use train_model or load_model
                    for initialization. 
         filename - Name of file to save model in. Existing files are overwritten.
         """
@@ -247,11 +245,11 @@ class JobAdCollector:
         The file is saved using R's save function.
 
         Arguments:
-        RFC      - RRFClassification instance. Use train_model or load_model
+        RFC      - JobAdClassification instance. Use train_model or load_model
                    for initialization. 
         filename - Name of file to save model in. Existing files are overwritten.
         """
-        RFC = classification.RRFClassification(self.Rlibpath, 
+        RFC = classification.JobAdClassification(self.Rlibpath, 
                                                self.search_terms, self.sites, language)
         RFC.load_model(filename)
 

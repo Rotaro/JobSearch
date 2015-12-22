@@ -2,8 +2,8 @@ import unittest
 from jobadcollector import parsers
 import urllib.parse
 
-class ParsersTest(unittest.TestCase):
-    """Class for testing parsers work properly.
+class ParsersTestCase(unittest.TestCase):
+    """Class for testing parsers.
     """
 
     def setUp(self):
@@ -98,3 +98,6 @@ class ParsersTest(unittest.TestCase):
                 #print example of job ad parsed
                 i = i + 1
                 print(str([ad[key] for key in self.job_ad_keys]).encode("unicode_escape"))
+
+if __name__ == '__main__':
+    unittest.main()
