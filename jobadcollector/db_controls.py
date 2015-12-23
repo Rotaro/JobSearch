@@ -4,7 +4,7 @@ import csv
 import codecs
 
 class JobAdDB:
-    """Class for managing an :mod:`sqlite3` database containing job ads.
+    """Management of :mod:`sqlite3` database containing job ads.
 
     For each job ad, the database will store (column name in parentheses):
 
@@ -57,6 +57,7 @@ class JobAdDB:
                              description varchar(1000), date date,
                              language varchar(100), relevant integer,
                              recommendation integer);""")
+
     def disconnect_db(self):
         """Closes the database connection and frees the database file from use.
         """    

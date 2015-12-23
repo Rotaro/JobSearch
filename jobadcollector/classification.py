@@ -5,22 +5,29 @@ import datetime
 import time
 
 class JobAdClassification:
-    """Classification of job ads as relevant or not using R and rpy2.
+    """Classification of job ads using R and rpy2.
 
-    This class can train a random forest model to predict the relevancy of 
-    new job ads. The model can be stored in a file for later use.
+    This class provides training of a machine learning model for 
+    recommendations for new job ads. The class also provides classification
+    of languages 
 
-    Arguments:
-    Rlibpath       - Path to local R libraries.
-    search_terms   - All search terms used. Needed to include all factor
-                     levels in the model.
-    sites          - All possible job ad sites. Needed to include all factor
-                     levels in the model.
-    language       - Language of ads to train on / classify.
+    Arguments
+    ---------
+    Rlibpath : str 
+        Path to local R libraries.
+    search_terms : list
+        All search terms used in job ad collections. Needed to include all factor
+        levels in the machine learning model.
+    sites : list
+        All job sites used in job ad collections. Needed to include all factor
+        levels in the model.
+    language : str
+        Language of job ads / machine learning model. Currently only Finnish and
+        English supported.
     """
 
     #Functions which were easier to implement in pure R than using rpy2.
-    R_functions_str = """ 
+    __R_functions_str = """ 
         cleanJobAds <- function(class_data, search_terms, sites) {
             # Cleans and transforms job ads.
             # More precisely:
@@ -180,18 +187,19 @@ class JobAdClassification:
         self._search_terms = search_terms
         self._sites = sites
         #columns needed for training model
-        self._train_columns = ["site", "searchterm", "title", "description", "relevant"]
+        self._train_columns = ["site", "searchterm", "title", "description", 
+                               "relevant"]
         #columns needed for classifying new job ads
         self._class_columns = ["id", "site", "searchterm", "title", "description"]
         #random forest model parameters
         self._threshold = 0.3
         self._splitratio = 0.7
         #base R assets
-        self.utils = robjects.packages.importr("utils")
-        self.utils.chooseCRANmirror(ind=5) #randomly chosen mirror
-        self.base = robjects.packages.importr("base")
+        self._utils = robjects.packages.importr("utils")
+        self._utils.chooseCRANmirror(ind=5) #randomly chosen mirror
+        self._base = robjects.packages.importr("base")
         #local library path
-        self.base._libPaths(Rlibpath)
+        self._base._libPaths(Rlibpath)
         #change locale to use utf-8 for r_repr()
         robjects.r['Sys.setlocale']("LC_CTYPE", "C") 
         
@@ -208,17 +216,26 @@ class JobAdClassification:
         to_install = [package for package in needed_packages 
                            if not robjects.packages.isinstalled(package)]
         if len(to_install) > 0:
-            self.utils.install_packages(StrVector(to_install))
+            self._utils.install_packages(StrVector(to_install))
         #load packages
-        self.loaded_packages = [robjects.packages.importr(package) 
+        self._loaded_packages = [robjects.packages.importr(package) 
                                 for package in needed_packages]
-        self.loaded_packages = dict(zip(needed_packages,  self.loaded_packages))
+        self._loaded_packages = dict(zip(needed_packages,  self._loaded_packages))
         #load R functions
-        self.R_functions = STAP(
-                self.R_functions_str, "R_functions")
+        self._R_functions = STAP(
+                self.__R_functions_str, "R_functions")
 
     def _remove_diacritics(self, string):
         """Removes all Swedish (Finnish) diacritics from a string.
+
+        Arguments
+        ----------
+        string : str
+            String to remove diacritics from.
+        Returns
+        ----------
+        clean_string : str
+            String without diacritics.
         """
         if isinstance(string, str):
             diacr = ["Ä", "ä", "Ö", "ö", "Å", "å"]
@@ -228,54 +245,47 @@ class JobAdClassification:
     
         return string
     
-    def create_R_dataframe(self, class_ads, include_columns):
+    def create_R_dataframe(self, job_ads, include_columns):
         """Converts job ads to R dataframe.
 
-        Arguments:
-        class_ads       - Job ads from the local database (see JobAdDB) as a list 
-                          of dictionaries.
-        include_columns - Columns which are included in the dataframe. Each column
-                          has to have a corresponding key in the job ad dictionaries.    
+        Arguments
+        ----------
+        job_ads : list
+            List of dictionaries of job ads. Each dictionary should have keys for 
+            all database columns (see :class:`JobAdDB` description for details).
+        include_columns : list
+            List of strings. Defines which columns are included in the dataframe. 
+            Each column has to have a corresponding key in the job ad dictionaries.    
+        Returns
+        ----------
+        dataf : :class:`robjects.DataFrame`
+            :class:`robjects.DataFrame` representing job ads.
         """
-
+        
         #modify structure to type {column:[rows]}   
-        class_ads_dataf = {}
+        job_ads_dataf = {}
         for column in include_columns:
-            class_ads_dataf[column] = [self._remove_diacritics(ad[column]) 
-                                       for ad in class_ads]
+            job_ads_dataf[column] = [self._remove_diacritics(ad[column]) 
+                                       for ad in job_ads]
             if (column == "relevant"):
-                class_ads_dataf[column] = IntVector(class_ads_dataf[column])
+                job_ads_dataf[column] = IntVector(job_ads_dataf[column])
             else:
-                class_ads_dataf[column] = self.base.I(StrVector(class_ads_dataf[column]))
+                job_ads_dataf[column] = self._base.I(StrVector(job_ads_dataf[column]))
              
-        return robjects.DataFrame(class_ads_dataf)
+        return robjects.DataFrame(job_ads_dataf)
 
-    def train_model(self, class_ads, language=None, search_terms=None, sites=None):
+    def train_model(self, class_ads):
         """Trains a random forest model for classification of job ad relevance.
 
-        Arguments:
-        class_ads    - Classified ads used to the train the model. Ads should be
-                       a list of dictionaries with keys for site, searchterm, 
-                       title, description and relevant. See the JobAdsDB class for
-                       details.
-        language     - Language of job ads. Needed for proper stemming and removal 
-                       of stopwords. If None, the language specified during
-                       instance creation is used.
-        search_terms - List of ALL search terms used, even if no ads were found
-                       with them. These are needed to have all necessary factor
-                       levels in the model. If None, the search terms specified during
-                       instance creation is used.
-        sites        - List of ALL sites searched, even if no ads were found on 
-                       on the sites. These are needed to have all necessary factor
-                       levels in the model. If None, the sites specified during
-                       instance creation is used.
+        Model is stored in the :class:`JobAdClassification` instance.
+
+        Arguments
+        ----------
+        class_ads : list
+            List of dictionaries of job ads, used to train model. Each dictionary
+            should have keys for site, searchterm, title, description and relevant.
+            See the :class:`JobAdsDB` class for details.
         """
-        if language == None:
-            language = self._language
-        if search_terms == None:
-            search_terms = self._search_terms
-        if sites == None:
-            sites = self._sites
         ##parameters for training
         #typical value
         splitratio = self._splitratio
@@ -284,76 +294,77 @@ class JobAdClassification:
 
         #convert to dataframe and clean ads
         dataf = self.create_R_dataframe(class_ads, self._train_columns)
-        dataf = self.R_functions.cleanJobAds(dataf, StrVector(search_terms), StrVector(sites))
-        dataf = self.R_functions.createJoinDTM(dataf, language.lower())
+        dataf = self._R_functions.cleanJobAds(dataf, StrVector(self._search_terms),
+                                              StrVector(self._sites))
+        dataf = self._R_functions.createJoinDTM(dataf, self._language.lower())
 
         #create training and testing data sets
         if (splitratio != 1.0):
             split = robjects.r['sample.split'](dataf.rx2('relevant'), splitratio)
-            train = robjects.r['subset'](dataf, self.R_functions.splitTerms(split, 'TRUE'))
-            test = robjects.r['subset'](dataf, self.R_functions.splitTerms(split, 'FALSE'))
+            train = robjects.r['subset'](dataf, self._R_functions.splitTerms(split, 'TRUE'))
+            test = robjects.r['subset'](dataf, self._R_functions.splitTerms(split, 'FALSE'))
         else:
             train = dataf
         #train model
-        self._RFmodel = self.R_functions.RFmodel(train, FloatVector([1-threshold, threshold])) 
+        self._RFmodel = self._R_functions.RFmodel(train, FloatVector([1-threshold, threshold])) 
         #test on testing set
         if (splitratio != 1.0):
-            pred = self.R_functions.RFpred(self._RFmodel, test)
-            conf_matrix = self.R_functions.model_eval(pred, test.rx2('relevant'), -1, 1)
+            pred = self._R_functions.RFpred(self._RFmodel, test)
+            conf_matrix = self._R_functions.model_eval(pred, test.rx2('relevant'), -1, 1)
 
     def save_model(self, filename):
-        """Saves instance model to file for later use.
+        """Saves :class:`JobAdClassification` instance model to file for later use.
 
-        Arguments:
-        filename   - Name of file to save model in.
+        Arguments
+        ----------
+        filename : str
+            Name of file to save model in.
         """
 
-        self.R_functions.saveFile(self._RFmodel, filename)
+        self._R_functions.saveFile(self._RFmodel, filename)
         
     def load_model(self, filename):
         """Loads random forest classification model from file.
 
-        Arguments:
-        filename   - Name of file to load model from.
+        Model is stored in :class:`JobAdClassification` instance.
+
+        Arguments
+        ----------
+        filename : str
+            Name of file to load model from.
         """
 
         self._RFmodel = robjects.r['get'](robjects.r['load'](filename))
 
 
-    def classify_ads(self, ads, language=None,
-                     search_terms=None, sites=None):
-        """Classifies ads using instance model.
+    def classify_ads(self, job_ads):
+        """Provides recommendations for ads using instance model.
 
-        Returns list of dictionaries containing with keys for id and classification 
-        (i.e. prediction of relevancy).
+        Arguments
+        ----------
+        ads : list
+            List of dictionaries of job ads. Each dictionary should contain
+            keys for id, site, searchterm, title, description (see :class:`JobAdDB`
+            description for details).
 
-        Arguments:
-        ads          - Ads to classify. Needs to be a list of dictionaries with
-                       keys for id, site, searchterm, title, description.
-        language     - Language of ads to classify.
-        search_terms - Search terms used in model (not needed if model factor levels
-                       are the same as the instance search_terms variable).
-        sites        - Sites used in model (not needed if model factor levels
-                       are the same as the instance sites variable).
+        Returns
+        ----------
+        results : list
+            List of dictionaries of job ads. Each ad contains keys for id and
+            recommendation.
         """
-        if language == None:
-            language = self._language
-        if search_terms == None:
-            search_terms = self._search_terms
-        if sites == None:
-            sites = self._sites
-
         #convert to dataframe and clean ads
-        dataf = self.create_R_dataframe(ads, self._class_columns)
+        dataf = self.create_R_dataframe(job_ads, self._class_columns)
         ids = dataf.rx2('id') 
-        dataf = self.R_functions.cleanJobAds(dataf, StrVector(search_terms), StrVector(sites))
-        dataf = self.R_functions.createJoinDTM(dataf, language.lower())
-        dataf = self.R_functions.prepNewAds(self._RFmodel, dataf)
+        dataf = self._R_functions.cleanJobAds(dataf, StrVector(self._search_terms), 
+                                              StrVector(self._sites))
+        dataf = self._R_functions.createJoinDTM(dataf, self._language.lower())
+        dataf = self._R_functions.prepNewAds(self._RFmodel, dataf)
 
         #classify ads
-        pred = self.R_functions.RFpred(self._RFmodel, dataf)
+        pred = self._R_functions.RFpred(self._RFmodel, dataf)
 
-        #combine results in list of dictionaries
+        #combine predictions with ids in a list of dictionaries
         results = [{"id" : ids[i], "recommendation": int(pred[i])-1} 
                    for i in range(0, robjects.r['length'](ids)[0])]
                            
@@ -366,13 +377,21 @@ class JobAdClassification:
         Only differentiates between Finnish and English; returns English if another
         language is recognized.
 
-        title       - Title of job ad.
-        description - Description of job ad.
+        Arguments
+        ----------
+        title : str
+            Title of job ad.
+        description : str
+            Description of job ad.
+        Returns
+        ----------
+        language : str
+            Determined language of job ad.
         """
-        language_both = self.loaded_packages["textcat"].textcat(
+        language_both = self._loaded_packages["textcat"].textcat(
             " ".join([title, description])).r_repr().replace("\"", "")
-        language_title = self.loaded_packages["textcat"].textcat(title).r_repr().replace("\"", "")
-        language_descrip = self.loaded_packages["textcat"].textcat(
+        language_title = self._loaded_packages["textcat"].textcat(title).r_repr().replace("\"", "")
+        language_descrip = self._loaded_packages["textcat"].textcat(
             description).r_repr().replace("\"", "")
 
         #English job titles with Finnish text is sometimes mistaken
@@ -397,9 +416,16 @@ class JobAdClassification:
         Returns list of dictionaries containing keys for id and 
         language.
 
-        Arguments:
-        ads - List of dictionaries representing job ads. Should contain
-              keys for id, title and description.
+        Arguments
+        ----------
+        ads : list
+            List of dictionaries of job ads. Each dictionary should contain 
+            keys for id, title and description.
+        Returns
+        ----------
+        results : list
+            List of dictionaries of job ads. Each ad contains keys for id and
+            language.
         """
 
         results = [{"id": ad["id"], 

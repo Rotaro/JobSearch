@@ -11,7 +11,7 @@ except ImportError:
     print("""Classification module import failed. Classification functions are disabled.""")
 
 class JobAdCollector:
-    """Class for operating job ad collections.
+    """Operation of job ad collections.
 
     Searches for job ads from Indeed.fi, Duunitori.fi and Monster.fi.
     Results are stored in a sqlite database Job ads can be classified as relevant
@@ -25,7 +25,7 @@ class JobAdCollector:
         Search terms. Can be left empty if not needed.
     db_name : str
         Filename of local sqlite database. A new one will be created if file
-    doesn't exist.
+        doesn't exist.
     Keyword Arguments
     ----------
     classification : bool 
@@ -56,7 +56,7 @@ class JobAdCollector:
         ----------
         search_term : list
             Search term(s) to use. If None, instance variable search_terms,
-        set during initialization, is used.
+            set during initialization, is used.
         """
         random.seed(1222)
         datab = db_controls.JobAdDB(self.db_name)
@@ -143,7 +143,7 @@ class JobAdCollector:
         elif (output_type == "csv"):
             datab.write_CSV_file(ads, output_name)
 
-    def classify_data(self, date_start, date_end):
+    def classify_ads_GUI(self, date_start, date_end):
         """Starts GUI for classifying database entries between given dates.
         
         All job ads between argument dates are included for classification. 
@@ -256,7 +256,7 @@ class JobAdCollector:
         datab = db_controls.JobAdDB(self.db_name)
 
         ads = datab.get_ads(date_start, date_end, language)
-        rec_ads = JAC.classify_ads(ads, language)
+        rec_ads = JAC.classify_ads(ads)
         datab.update_ads_recommendation(rec_ads)
         datab.disconnect_db()
         

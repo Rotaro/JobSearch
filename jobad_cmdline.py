@@ -134,7 +134,7 @@ def main(argv):
         if parsed_argv.mode == "view":
             jac.output_results(start, end, parsed_argv.output_name, parsed_argv.output_type)
         elif parsed_argv.mode == "classify":
-            jac.classify_data(start, end)
+            jac.classify_ads_GUI(start, end)
         elif parsed_argv.mode == "search":
             if ("search_term" in parsed_argv):
                 jac.start_search(parsed_argv.search_term)
