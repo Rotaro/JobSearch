@@ -232,7 +232,7 @@ class JobAdClassification:
         """Converts job ads to R dataframe.
 
         Arguments:
-        class_ads       - Job ads from the local database (see JobAdsDB) as a list 
+        class_ads       - Job ads from the local database (see JobAdDB) as a list 
                           of dictionaries.
         include_columns - Columns which are included in the dataframe. Each column
                           has to have a corresponding key in the job ad dictionaries.    
@@ -252,8 +252,6 @@ class JobAdClassification:
 
     def train_model(self, class_ads, language=None, search_terms=None, sites=None):
         """Trains a random forest model for classification of job ad relevance.
-
-        The model is stored in the JobAdClassification instance variable _RFmodel.
 
         Arguments:
         class_ads    - Classified ads used to the train the model. Ads should be
@@ -345,8 +343,6 @@ class JobAdClassification:
         if sites == None:
             sites = self._sites
 
-        print(search_terms)
-        print(sites)
         #convert to dataframe and clean ads
         dataf = self.create_R_dataframe(ads, self._class_columns)
         ids = dataf.rx2('id') 

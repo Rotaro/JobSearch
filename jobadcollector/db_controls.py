@@ -3,46 +3,48 @@ import datetime
 import csv
 import codecs
 
-class JobAdsDB:
-    """
-    Class for managing an sqlite database of job ads. 
-     
+class JobAdDB:
+    """Class for managing an :mod:`sqlite3` database containing job ads.
+
     For each job ad, the database will store (column name in parentheses):
-        - name of job ad site (site, varchar(255))
-        - search term for job ad (searchterm, varchar(255))
-        - a unique id (id, varchar(255))
-        - job title (title, varchar(255))
-        - url to job ad (url, varchar(1000))
-        - description (description, varchar(1000))
-        - date stored (date, date)
-        If a machine learning model has been trained (otherwise ignored):
-            - language (language, varchar(100))
-            - relevance (relevant, integer)
-            - recommendation (recommendation, integer)
 
-    The class has two modes of operation:
-        - Storing / retrieving non-classified, plain job ads. 
-        - Updating / retrieving classified ads.
+    - name of job ad site (site, varchar(255))
+    - search term for job ad (searchterm, varchar(255))
+    - a unique id (id, varchar(255) PRIMARY KEY)
+    - job title (title, varchar(255))
+    - url to job ad (url, varchar(1000))
+    - description (description, varchar(1000))
+    - date stored (date, date)
+    - language (language, varchar(100))
+    - relevance (relevant, integer)
+    - recommendation (recommendation, integer)
 
-    Arguments:
-    filename - Name of database file. If file doesn't exist, a new
-               db is created.
+    The class supports:
+
+    - Storing fresh job ads (i.e. no date, language, relevance, 
+      recommendation).
+    - Retrieving job ads.
+    - Retrieving job ads for classification.
+    - Updating language and recommendation for job ads.
+
+    Arguments
+    ----------
+    filename : str
+        Name of database file. If file doesn't exist, a new one is created.
     """
-    db_filename = ""
-    conn = None
-    columns_plain = ["site", "searchterm", "id", "title", "url", "description"]
-    columns_classified = ["site", "searchterm", "id", "title", "url", "description",
-                         "date", "language", "relevant", "recommendation"]
- 
+    
     def __init__(self, filename):
         self.db_filename = filename
+        self.conn = None
+        #columns in database
+        self._db_columns = ["site", "searchterm", "id", "title", "url", 
+                            "description", "date", "language", "relevant",
+                            "recommendation"]
 
-    def connect_db(self):
-        """
-        Opens a connection to the database.
+    def _connect_db(self):
+        """Opens connection to instance database.
         
-        
-        Creates an empty table for job ads unless one already exists.
+        Creates an empty table for job ads in the database if one doesn't exist.
         """
         if (self.db_filename != ""):
             self.conn = sqlite3.connect(self.db_filename)
@@ -56,29 +58,34 @@ class JobAdsDB:
                              language varchar(100), relevant integer,
                              recommendation integer);""")
     def disconnect_db(self):
-        """Closes connection to database.
+        """Closes the database connection and frees the database file from use.
         """    
         if (self.conn != None):
             self.conn.close()
 
     def store_ads(self, job_ads):
-        """ 
-        Stores NEW job ads in the database, existing ones are not updated.
+        """Stores NEW job ads in the database, existing ones are not updated.
 
-        Arguments:
-        job_ads         - Dictionary of new job ads. Should have a key for all 
-                          database columns, except date and the ones related to 
-                          classification (language, relevant, recommendation). 
-                          See class description for details.
+        Date is set as present day, while language, recommendation and relevant
+        are set as None.
+
+        Arguments
+        ----------
+        job_ads: list
+            List of dictionaries containing job ads. Each dictionary should 
+            have keys for site, searchterm, id, title, description, url. 
+            See :class:'JobAdDB` description for details.
         """
 
         if(self.conn == None):
-            self.connect_db()
+            self._connect_db()
         c = self.conn.cursor()
+        #required columns in ads
+        new_ad_cols = ["site", "searchterm", "id", "title", "url", "description"]
         #generate date and empty classification columns
         extra_columns = [datetime.date.today(), None, None, None]
         #set right order for entry into database
-        for_db = [[job_ad[column] for column in self.columns_plain]+extra_columns
+        for_db = [[job_ad[column] for column in new_ad_cols] + extra_columns
                   for job_ad in job_ads]
         
         for db_entry in for_db:          
@@ -90,22 +97,23 @@ class JobAdsDB:
         self.conn.commit()
 
     def get_ads(self, date_start, date_end, language="all"):
-        """ 
-        Returns job ads from the database.
+        """Returns job ads from the database.
 
         Filters by date and language. Jobs ads are returned as a list of
-        dictionaries with column names as keys. See class description for 
-        details.
+        dictionaries with column names as keys. See :class:`JobAdDB` 
+        description for details.
                 
-        Arguments:
-        date_start - Datetime instance of earliest date of jobs
-                     ads to return. If None, all entries up until date_end 
-                     are returned.
-        date_end   - Datetime instance of latest date of jobs ads
-                     to return. If None, all entries after date_start are returned.
-        If both date_start and date_end are None, all entries are returned.
-        language   - Language of job ads. If set to "all", the language column is 
-                     ignored.
+        Arguments
+        ----------
+        date_start : :class:`datetime`
+             Earliest date of job ads. If None, all job ads since the start 
+             of the database are output.
+        date_end : :class:`datetime`
+            Latest date of job ads. If None, all job ads until end of database
+            are output. If both date_start and date_end are None, all job ads 
+            in the database are output.
+        language : str
+            Language of classified jobs ads to output.
         """
 
         if(self.conn == None):
@@ -136,43 +144,40 @@ class JobAdsDB:
                              WHERE language = ? AND date >= ? AND date <= ? """,
                           (language, date_start,date_end,)) 
 
-        return [dict(zip(self.columns_classified, db_entry)) for db_entry in c.fetchall()]
+        return [dict(zip(self._db_columns, db_entry)) for db_entry in c.fetchall()]
 
     def update_ads(self, job_ads):
-        """
-        Updates job ads, does not insert new ones.
+        """Updates existing job ads.
 
-        Should be used after classifying job ads, i.e. determining language and
-        relevance.
-
-        Arguments:
-        job_ads - List of new job ads. Job ads should be dictionaries with all database 
-                  columns as keys. See class description for details.
+        Arguments
+        ----------
+        job_ads : list
+            List of dictionaries of job ads. Each dictionary should have all 
+            database columns as keys. See :class:`JobAdDB` description for details.
         """
         if(self.conn == None):
-            self.connect_db()
+            self._connect_db()
         c = self.conn.cursor()
 
         for ad in job_ads:
             c.execute("""
             REPLACE INTO JobEntries
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", 
-            tuple([ad[column] for column in self.columns_classified]))
+            tuple([ad[column] for column in self._db_columns]))
 
         self.conn.commit()
 
     def update_ads_recommendation(self, job_ads):
-        """
-        Updates the recommendation of job ads.
+        """Updates the recommendation of job ads.
 
-        Should be used after running a trained random forest model on new job ads.
-
-        Arguments:
-        job_ads - List of dictionaries of job ads with recommendation. Job ads should 
-                  have keys for id and recommendation. See class description for details.
+        Arguments
+        ----------
+        job_ads : list
+            List of dictionaries of job ads. Dictionaries should contain id and 
+            recommendation as keys. See :class:`JobAdDB` description for details.
         """
         if(self.conn == None):
-            self.connect_db()
+            self._connect_db()
         c = self.conn.cursor()
 
         for ad in job_ads:
@@ -186,15 +191,16 @@ class JobAdsDB:
         self.conn.commit()
 
     def update_ads_language(self, job_ads):
-        """
-        Updates the language of job ads.
+        """Updates the language of job ads.
 
-        Arguments:
-        job_ads - List of dictionaries of job ads with language. Job ads should 
-                  have keys for id and language. See class description for details.
+        Arguments
+        ----------
+        job_ads : list
+            List of dictionaries of job ads. Dictionaries should contain id and 
+            language as keys. See :class:`JobAdDB` description for details.
         """
         if(self.conn == None):
-            self.connect_db()
+            self._connect_db()
         c = self.conn.cursor()
 
         for ad in job_ads:
@@ -210,19 +216,21 @@ class JobAdsDB:
                                date_start=datetime.datetime.strptime("01-01-2015", "%d-%m-%Y"), 
                                date_end=datetime.date.today(), language="English", all_columns=0):
         """
-        Retrieves classified job ads from database.
+        Retrieves classified job ads, i.e. ads with relevant set to 0 or 1, 
+        from database.
         
-        Allows filtering by date and language. Returns either all job ad columns or 
-        only those needed for training a machine learning model. Job ads are returned
-        as a list of dictionaries with column names as keys.
-
-        Arguments:
-        date_start  - Datetime instance. Default is start of 2015.
-        date_end    - Datetime instance. Default is today.
-        language    - Language of entries. Default is "English."
-        all_columns - Specifies which columns should be retrieved from the database.
-                      If 1, all columns are returned (see class description), if 0, 
-                      only site, search term, title, description, language and relevant.
+        Arguments
+        ----------
+        date_start : :class:`datetime`
+            Earliest date of job ads. Default is start of 2015.
+        date_end : :class:`datetime`
+            Latest date of job ads. Default is present day. 
+        language : str
+            Language of job ads. Default is "English."
+        all_columns : int
+            Specifies which columns should be retrieved. If 1, all columns are
+            returned (see :class:`JobAdDB` description). If 0, only site, search 
+            term, title, description, language and relevant.
         """
 
         if(self.conn == None):
@@ -238,7 +246,7 @@ class JobAdsDB:
                                       AND date >= ? AND date <= ?""",
                                 (language, date_start, date_end))
         else:
-            columns = self.columns_classified
+            columns = self._db_columns
             entries = c.execute("""
                                 SELECT * FROM JobEntries
                                 WHERE relevant != 'None' AND language == ? 
@@ -247,16 +255,20 @@ class JobAdsDB:
 
         return [dict(zip(columns, db_entry)) for db_entry in c.fetchall()]
 
-    def write_HTML_file(self, db_entries, filename):
+    def write_HTML_file(self, job_ads, filename):
         """
-        Writes provided jobs ads to an HTML file.
+        Writes jobs ads to an HTML file.
 
-        Arguments:
-        db_entries - List of dictionaries representing job ads. The dictionaries
-                     should have all column names mentioned in the class description
-                     as keys.
-        filename   - Name of HTML file to create. Any existing file is 
-                     overwritten.
+        The HTML file can use a local css file, jobsearch.css, as a style
+        sheet.
+
+        Arguments
+        ----------
+        job_ads : list
+            List of dictionaries of job ads. Dictionaries should contain all 
+            database columns. See :class:`JobAdDB` description for details.
+        filename : str
+            Name of file to write to. Any existing file is overwritten.
         """
         row_number = 0
         html_start = """<!DOCTYPE HTML><html><head>
@@ -279,7 +291,7 @@ class JobAdsDB:
                 <th></th>
             </tr>"""
         for db_entry in db_entries:
-            db_entry_list = [db_entry[column] for column in self.columns_classified]
+            db_entry_list = [db_entry[column] for column in self._db_columns]
             html_entry = """
             <tr class="%s" origsite="%s" id="%d">
                 <td class="searchterm">%s</td>
@@ -306,13 +318,15 @@ class JobAdsDB:
         file.write(html_start)
         file.close()
 
-    def write_CSV_file(self, db_entries, filename):
+    def write_CSV_file(self, job_ads, filename):
         """
-        Writes provided jobs ads to a CSV file (Excel style).
+        Writes jobs ads to a CSV file (Excel style).
 
-        db_entries - Job ads should be from the database, i.e. using get_ads().
-        filename   - Name of CSV file to create. Any existing file is 
-                     overwritten.
+        job_ads : list
+            List of dictionaries of job ads. Dictionaries should contain all 
+            database columns. See :class:`JobAdDB` description for details.
+        filename : str
+            Name of file to write to. Any existing file is overwritten.
         """
 
         headers = ["Search term", "Site", "Job title", "Description", "Date", 

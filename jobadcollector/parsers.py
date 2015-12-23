@@ -18,7 +18,7 @@ class URLGenerator:
 
 class JobAdParser(HTMLParser):
     """HTMLParser subclass for parsing job ad sites. 
-
+    
     Contains functions for starting search and returning parsed job_ads. 
     
     Is further subclassed for implementation of parsing logic for particular 
@@ -55,7 +55,7 @@ class JobAdParser(HTMLParser):
         """Returns parsed job ads. 
        
         Job ads are stored as a list of dictionaries, with keys for database
-        columns id, title, url and description (see JobAdsDB for descriptions
+        columns id, title, url and description (see JobAdDB for descriptions
         of database columns).
         """
         return self._job_ads

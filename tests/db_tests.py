@@ -8,13 +8,13 @@ import jobadcollector.db_controls as db_controls
 
 
 class JobsAdDBTestCase(unittest.TestCase):
-    """Various tests for JobAdsDB class.
+    """Various tests for JobAdDB class.
     """
 
     def setUp(self):
         self.filename = ":memory:"
-        self.db = db_controls.JobAdsDB(self.filename)
-        self.db.connect_db()
+        self.db = db_controls.JobAdDB(self.filename)
+        self.db._connect_db()
         self.db_columns = [("site", "varchar(255)", 0), 
                          ("searchterm", "varchar(255)", 0), 
                          ("id", "varchar(255)", 1), 
@@ -67,14 +67,14 @@ class JobsAdDBTestCase(unittest.TestCase):
     def test_class_creation(self):
         """Test class is created and initialized properly.
         """
-        self.assertIsInstance(self.db, db_controls.JobAdsDB)
+        self.assertIsInstance(self.db, db_controls.JobAdDB)
         self.assertEqual(self.db.db_filename, self.filename)
 
 
     def test_connect_db(self):
         """Test database connection is established and JobEntries table created properly.
         """
-        self.db.connect_db()
+        self.db._connect_db()
         self.assertIsInstance(self.db.conn, db_controls.sqlite3.Connection)
         c = self.db.conn.cursor()
         table = c.execute("""SELECT * FROM sqlite_master 
@@ -87,7 +87,7 @@ class JobsAdDBTestCase(unittest.TestCase):
     def test_disconnect_db(self):
         """Test database connection is properly disconnected.
         """
-        self.db.connect_db()
+        self.db._connect_db()
         self.db.disconnect_db()
         self.assertRaises(sqlite3.ProgrammingError, self.db.conn.cursor)
 
@@ -117,7 +117,7 @@ class JobsAdDBTestCase(unittest.TestCase):
                     self.assertCountEqual(ret_ad, sto_ad)
         #reset db (works since db is in memory)
         self.db.disconnect_db()
-        self.db.connect_db()
+        self.db._connect_db()
         #test storing entries with garbage keys
         self.db.store_ads(self.job_ads_garbage)
         #check entries exist and are stored correctly

@@ -12,20 +12,26 @@ except ImportError:
 
 class JobAdCollector:
     """Class for operating job ad collections.
-    Searches for job ads from Indeed.fi, Duunitori.fi and Monster.fi. 
-    Results are stored in a sqlite database named during initiation. Job ads
-    can be classified as relevant or not, which allows for a random forest model 
-    to be trained to predict the relevancy of new job ads. Entries in the database 
-    can be output as an HTML or CSV file.
 
-    Arguments:
-    search_terms   - List of search terms to use. Can be left empty.
-    db_name        - Filename of local sqlite database. A new one will be created 
-                     if file doesn't exist.
-    classification - Boolean, allows classification of job ads. rpy2 is only imported 
-                     if set to True (to allow for use of the program without R and 
-                     rpy2 installed).
-    Rlibpath       - ONLY if classification is True. Path to local R libraries.
+    Searches for job ads from Indeed.fi, Duunitori.fi and Monster.fi.
+    Results are stored in a sqlite database Job ads can be classified as relevant
+    or not, which allows for a random forest model to be trained to predict the
+    relevancy of new job ads. Entries in the database can be output as an HTML or
+    CSV file.
+
+    Arguments
+    ----------
+    search_terms : list 
+        Search terms. Can be left empty if not needed.
+    db_name : str
+        Filename of local sqlite database. A new one will be created if file
+    doesn't exist.
+    Keyword Arguments
+    ----------
+    classification : bool 
+        Classification support. rpy2 is only imported if set to True.
+    Rlibpath : str
+        Path to local R libraries. Only needed if classification is True.
     """
 
     def __init__(self, search_terms, db_name, classification=CLASSIFICATION, 
@@ -46,12 +52,14 @@ class JobAdCollector:
 
         HTML requests are randomly delayed by 3 to 5 seconds. 
 
-        search_term - Search term to use. If None, instance variable search_terms,
-                      set during initialization, is used.
+        Keyword Arguments
+        ----------
+        search_term : list
+            Search term(s) to use. If None, instance variable search_terms,
+        set during initialization, is used.
         """
         random.seed(1222)
-        datab = db_controls.JobAdsDB(self.db_name)
-        datab.connect_db()
+        datab = db_controls.JobAdDB(self.db_name)
         if (search_term != None):
             searchables = [search_term]
         else:
@@ -82,20 +90,25 @@ class JobAdCollector:
 
     def output_results(self, date_start, date_end, output_name, output_type):
         """Outputs job ads from database as an HTML or CSV file.
+
+        All job ads between argument dates are included in the output.
   
-        Arguments:
-        date_start  - Datetime instance. If None, all job ads since the
-                      start of the database are output.
-        date_end    - Datetime instance. If None, all job ads until
-                      end of database are output.
-        If both date_start and date_end are None, all job ads in the 
-        database are output.
-        output_name - Name of the file to output results to. 
-        output_type - Type of output file, "csv" or "html"
+        Arguments
+        ----------
+        date_start : :class:`datetime`
+             Earliest date of job ads. If None, all job ads since the start 
+             of the database are output.
+        date_end : :class:`datetime`
+            Latest date of job ads. If None, all job ads until end of database
+            are output. If both date_start and date_end are None, all job ads 
+            in the database are output.
+        output_name : str
+            Name of the file to output results to.
+        output_type : str
+            Type of output file, "csv" or "html" possible.
         """
         
-        datab = db_controls.JobAdsDB(self.db_name)
-        datab.connect_db()
+        datab = db_controls.JobAdDB(self.db_name)
         print("Writing to %s from %s." % (output_name, self.db_name))
         if (output_type == "html"):
             datab.write_HTML_file(datab.get_ads(date_start, date_end), output_name)
@@ -109,16 +122,23 @@ class JobAdCollector:
                                output_name="class.csv", output_type="csv"):
         """Outputs classified job ads from the database as an HTML or CSV file. 
 
-        Arguments:
-        date_start  - Datetime instance of earliest date of job ads. 
-        date_end    - Datetime instance of latest date of job ads. 
-        language    - Language of classified jobs ads to output.
-        output_name - Name of the file to output results to. 
-        output_type - Type of output file, "csv" or "html"
+        All job ads between argument dates are included in the output.
+
+        Keyword Arguments
+        ----------
+        date_start : :class:`datetime`
+            Earliest date of job ads. Default is start of 2015.
+        date_end : :class:`datetime`
+            Latest date of job ads. Default is present day.
+        language : str
+            Language of classified jobs ads to output.
+        output_name : str
+            Name of the file to output results to. 
+        output_type : str
+            Type of output file, "csv" or "html"
         """
         
-        datab = db_controls.JobAdsDB(self.db_name)
-        datab.connect_db()
+        datab = db_controls.JobAdDB(self.db_name)
         ads = datab.get_classified_ads(date_start, date_end, language, 1)
         print("Writing to %s from %s." % (output_name, self.db_name))
         if (output_type == "html"):
@@ -129,15 +149,19 @@ class JobAdCollector:
     def classify_data(self, date_start, date_end):
         """Starts GUI for classifying database entries between given dates.
         
-        date_start  - Datetime instance. If None, all job ads since the
-                      start of the databbase are output.
-        date_end    - Datetime instance. If None, all job ads after 
-                      date_start are output. 
-        If both date_start and date_end are None, all job ads in the 
-        database are output.
+        All job ads between argument dates are included for classification. 
+
+        Arguments
+        ----------
+        date_start : :class:`datetime`
+            Earliest date of job ads. If None, all job ads since the start of
+            the database are included.
+        date_end : :class:`datetime`
+            Latest date of job ads. If None, all job ads after date_start are 
+            included. If both date_start and date_end are None, all job ads in 
+            the database are included.
         """
-        datab = db_controls.JobAdsDB(self.db_name)
-        datab.connect_db()
+        datab = db_controls.JobAdDB(self.db_name)
 
         gui = db_gui.JobAdGUI(datab.get_ads(date_start, date_end))
         gui.mainloop()
@@ -151,108 +175,127 @@ class JobAdCollector:
                                date_end=datetime.date.today()):
         """Trains random forest model on classified job ads.
 
-        All job ads between provided dates are included in the training. 
+        All job ads between argument dates are included in the training. 
 
-        Returns JobAdClassification instance with model, search_terms and sites set.
-        Model can be found under RFmodel.
+        Arguments
+        ----------
+        language : str
+            Language of job ads to train on. Needed for proper stemming and 
+            removal of stopwords.
+        date_start : :class:`datetime`
+            Earliest date of job ads. Default is start of 2015.
+        date_end : :class:`datetime`
+            Latest date of job ads. Default is present day. 
 
-        Arguments:
-        language    - Language of job ads to train on. Needed for proper stemming and
-                      removal of stopwords.
-        date_start  - Datetime instance. Default is start of 2015 (i.e. before db creation).
-        date_end    - Datetime instance. Default is today.
-        If both date_start and date_end are None, all job ads in the database
-        are included.
+        Returns
+        ----------
+        JAC : :class:`JobAdClassification` 
+            :class:`JobAdClassification`  instance with language, model,
+            search_terms and sites set.
         """
         if (self.classification == False):
             raise EnvironmentError("Classification not enabled in JobAdCollector")
         
-        RFC = classification.JobAdClassification(self.Rlibpath, self.search_terms, 
+        JAC = classification.JobAdClassification(self.Rlibpath, self.search_terms, 
                                                self.sites, language)
-        datab = db_controls.JobAdsDB(self.db_name)
-        datab.connect_db()
-        RFmodel = RFC.train_model(
+        datab = db_controls.JobAdDB(self.db_name)
+        RFmodel = JAC.train_model(
                   datab.get_classified_ads(date_start, date_end, language, 1), language)
         
         datab.disconnect_db()
 
-        return RFC
+        return JAC
 
     def det_lang_store_ads(self, date_start, date_end):
-        """Attempts to determine language of job ads and stores results
-        in database. Needs classification to be enabled.
+        """Attempts to determine language of job ads.
+       
+        The languages of all job ads between argument dates are determined 
+        and stored in the database. Classification has to be enabled in
+        JobAdCollector instance.
 
-        Arguments:
-        date_start  - Datetime instance. If None, all job ads since the
-                      start of the database are included.
-        date_end    - Datetime instance. If None, all job ads until
-                      end of database are included.
-        If both date_start and date_end are None, all job ads in the database
-        are included.
+        Arguments
+        ----------
+        date_start : :class:`datetime`
+            Earliest date of job ads. If None, all job ads since the start of
+            the database are included.
+        date_end : :class:`datetime`
+            Latest date of job ads. If None, all job ads after date_start are 
+            included. If both date_start and date_end are None, all job ads in 
+            the database are included.
         """
         if (self.classification == False):
             raise EnvironmentError("Classification not enabled in JobAdCollector")
                                     
-        datab = db_controls.JobAdsDB(self.db_name)
-        datab.connect_db()
-        RFC = classification.JobAdClassification(self.Rlibpath, [], [], "")
+        datab = db_controls.JobAdDB(self.db_name)
+        JAC = classification.JobAdClassification(self.Rlibpath, [], [], "")
 
         ads = datab.get_ads(date_start, date_end)
-        lang_ads = RFC.det_lang_ads(ads)
+        lang_ads = JAC.det_lang_ads(ads)
         datab.update_ads_language(lang_ads)
         datab.disconnect_db()
 
-    def recomm_store_ads(self, RFC, language, date_start, date_end):
-        """Classifies ads using provided model and stores the recommendations
-        in the database.
+    def recomm_store_ads(self, JAC, language, date_start, date_end):
+        """Classifies ads using provided model.
+       
+        All job ads between argument dates of argument language are
+        classified. The results are stored under the recommendation
+        column in the database.
 
-        Arguments:
-        RFC         - JobAdClassification instance. Use train_model or load_model
-                      for initialization.
-        language    - Language of ads.
-        date_start  - Datetime instance. If None, all job ads since the
-                      start of the database are included.
-        date_end    - Datetime instance. If None, all job ads until
-                      end of database are included.
-        If both date_start and date_end are None, all job ads in the database
-        are included.
+        Arguments
+        ----------
+        JAC : :class:`JobAdClassification`  
+            Has to have model set.
+        language : str
+            Language of model and job ads to provide recommendations for.
+        date_start : :class:`datetime`
+            Earliest date of job ads. If None, all job ads since the start of
+            the database are included.
+        date_end : :class:`datetime`
+            Latest date of job ads. If None, all job ads after date_start are 
+            included. If both date_start and date_end are None, all job ads in 
+            the database are included.
         """
                                       
-        datab = db_controls.JobAdsDB(self.db_name)
-        datab.connect_db()
+        datab = db_controls.JobAdDB(self.db_name)
 
         ads = datab.get_ads(date_start, date_end, language)
-        rec_ads = RFC.classify_ads(ads, language)
+        rec_ads = JAC.classify_ads(ads, language)
         datab.update_ads_recommendation(rec_ads)
         datab.disconnect_db()
         
-    def save_model(self, RFC, filename):
+    def save_model(self, JAC, filename):
         """Saves provided model to file.
 
         The file is saved using R's save function.
 
-        Arguments:
-        RFC      - JobAdClassification instance. Use train_model or load_model
-                   for initialization. 
-        filename - Name of file to save model in. Existing files are overwritten.
+        Arguments
+        ----------
+        JAC : :class:`JobAdClassification` 
+            Has to have model set.
+        filename : str
+            Name of file to save model in. Existing files are overwritten.
         """
 
-        RFC.save_model(filename)
+        JAC.save_model(filename)
 
     def load_model(self, language, filename):
         """Loads model from file.
 
-        The file is saved using R's save function.
-
-        Arguments:
-        RFC      - JobAdClassification instance. Use train_model or load_model
-                   for initialization. 
-        filename - Name of file to save model in. Existing files are overwritten.
+        Arguments
+        ----------
+        language : str
+            Language of model and job ads to provide recommendations for.
+        filename : str
+            Name of file to load model from.
+        Returns
+        ----------
+        :class:`JobAdClassification`  :
+            :class:`JobAdClassification` instance with model set.    
         """
-        RFC = classification.JobAdClassification(self.Rlibpath, 
+        JAC = classification.JobAdClassification(self.Rlibpath, 
                                                self.search_terms, self.sites, language)
-        RFC.load_model(filename)
+        JAC.load_model(filename)
 
-        return RFC
+        return JAC
 
 
