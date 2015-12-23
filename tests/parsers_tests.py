@@ -19,21 +19,21 @@ class ParsersTestCase(unittest.TestCase):
         """Test proper Duunitori URL is generated.
         """
         for search_term in self.search_terms:
-            url = parsers.URLGenerator.Duunitori_URL(search_term[0])
+            url = self.dtp._generate_URL(search_term[0])
             self.assertEqual(url, "http://duunitori.fi/tyopaikat/?haku="+ search_term[1] + "&alue=")
            
     def test_Monster_URLGenerator(self):
         """Test proper Monster URL is generated.
         """
         for search_term in self.search_terms:
-            url = parsers.URLGenerator.Monster_URL(search_term[0])
+            url = self.mp._generate_URL(search_term[0])
             self.assertEqual(url, "http://hae.monster.fi/ty%C3%B6paikkoja/?q=" + search_term[1] + "&cy=fi")
 
     def test_Indeed_URLGenerator(self):
         """Test proper Indeed URL is generated.
         """
         for search_term in self.search_terms:
-            url = parsers.URLGenerator.Indeed_URL(search_term[0])
+            url = self.ip._generate_URL(search_term[0])
             self.assertEqual(url, "http://www.indeed.fi/jobs?as_and=" +  search_term[1] + 
                                   "&as_phr=&as_any=&as_not=&as_ttl=&as_cmp=&jt=all&st=&radius=" +
                                   "50&l=Helsinki&fromage=any&limit=50&sort=date&psf=advsrch")
@@ -41,7 +41,7 @@ class ParsersTestCase(unittest.TestCase):
     def test_Duunitoriparser(self):
         """Test Duunitori parser produces the correct fields.
         """
-        self.dtp.parse_URL(parsers.URLGenerator.Duunitori_URL(self.search_terms[0][0]))
+        self.dtp.parse(self.search_terms[0][0])
         results = self.dtp.get_job_ads()
         if len(results) == 0:
             raise AssertionError("No job ads parsed.")
@@ -62,7 +62,7 @@ class ParsersTestCase(unittest.TestCase):
     def test_Monsterparser(self):
         """Test Monster parser produces the correct fields.
         """
-        self.mp.parse_URL(parsers.URLGenerator.Monster_URL(self.search_terms[0][0]))
+        self.mp.parse(self.search_terms[0][0])
         results = self.mp.get_job_ads()
         if len(results) == 0:
             raise AssertionError("No job ads parsed.")
@@ -82,7 +82,7 @@ class ParsersTestCase(unittest.TestCase):
     def test_Indeedparser(self):
         """Test Indeed parser produces the correct fields.
         """
-        self.ip.parse_URL(parsers.URLGenerator.Indeed_URL(self.search_terms[0][0]))
+        self.ip.parse(self.search_terms[0][0])
         results = self.ip.get_job_ads()
         if len(results) == 0:
             raise AssertionError("No job ads parsed.")

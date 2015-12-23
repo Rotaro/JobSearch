@@ -71,12 +71,9 @@ class JobAdCollector:
                 monster_parser = parsers.MonsterParser()
                 indeed_parser = parsers.IndeedParser()
                 duunitori_parser = parsers.DuunitoriParser()
-                indeed_parser.parse_URL(
-                    parsers.URLGenerator.Indeed_URL(search_term))
-                monster_parser.parse_URL(
-                    parsers.URLGenerator.Monster_URL(search_term))
-                duunitori_parser.parse_URL(
-                    parsers.URLGenerator.Duunitori_URL(search_term))
+                indeed_parser.parse(search_term)
+                monster_parser.parse(search_term)
+                duunitori_parser.parse(search_term)
                 #add site and search term to job ads (modifies parser instance!)
                 for job_ad in indeed_parser.get_job_ads():
                     job_ad.update({'site': 'indeed', 'searchterm': search_term}) 

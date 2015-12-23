@@ -1,32 +1,23 @@
 ﻿from html.parser import HTMLParser
 import urllib.request
-from urllib.parse import urlparse
-from urllib.parse import quote_plus
+from urllib.parse import urlparse, quote_plus
+import abc
 import re
 
-class URLGenerator:
-    """Generates URLs based on provided search term for different sites.
-    """
-    def Indeed_URL(search_term):
-        search_term = search_term.replace(" ", "%20")
-        return "http://www.indeed.fi/jobs?as_and=%s&as_phr=&as_any=&as_not=&as_ttl=&as_cmp=&jt=all&st=&radius=50&l=Helsinki&fromage=any&limit=50&sort=date&psf=advsrch" % quote_plus(search_term)
-    def Monster_URL(search_term):
-        return "http://hae.monster.fi/ty%%C3%%B6paikkoja/?q=%s&cy=fi" % quote_plus(search_term)
-    def Duunitori_URL(search_term):
-        return "http://duunitori.fi/tyopaikat/?haku=%s&alue=" % quote_plus(search_term)
-    
+class JobAdParser(HTMLParser, metaclass=abc.ABCMeta):
+    """Abstract :class:`HTMLParser` subclass for parsing job ad sites.
 
-class JobAdParser(HTMLParser):
-    """HTMLParser subclass for parsing job ad sites. 
-    
     Contains functions for starting search and returning parsed job_ads. 
-    
-    Is further subclassed for implementation of parsing logic for particular 
-    sites. The parsing should produce id, title, url and additional information 
-    (e.g. short description). These should be stored in the instance variables
-    _id, _title, _url, _additional. Once an ad has been parsed, the function
-    _save_job_ad() should be called.
-    
+    :class:`JobAdParser` is further subclassed for implementation of parsing 
+    logic for particular sites. The implementation should do the following:
+
+    - Produce id, title, url and additional information (e.g. short description)
+      for each job ad. 
+    - Once parsed, the information should be stored in the instance variables _id,
+      _title, _url, _additional. 
+    - Once an ad has been fully parsed, the instance function _save_job_ad()
+      should be called.
+
     """
 
     def __init__(self):
@@ -39,13 +30,16 @@ class JobAdParser(HTMLParser):
         self._url = "" 
         self._additional = ""
 
-    def parse_URL(self, URL):
-        """Parses given URL.
+    def parse(self, search_term):
+        """Performs search on job ad site for search term.
 
-        Arguments:
-        URL - String of URL to parse.
+        Arguments
+        ----------
+        search_term : str
+            Search term for job ad site.
         """
-        url_req = urllib.request.urlopen(URL)
+        url = self._generate_URL(search_term)
+        url_req = urllib.request.urlopen(url)
         encoding = url_req.headers.get_content_charset()
         url_req_text = re.sub("\s+", " ", url_req.read().decode(encoding))
         url_req_text = re.sub("(&nbsp;)+", " ", url_req_text)
@@ -54,14 +48,14 @@ class JobAdParser(HTMLParser):
     def get_job_ads(self):
         """Returns parsed job ads. 
        
-        Job ads are stored as a list of dictionaries, with keys for database
-        columns id, title, url and description (see JobAdDB for descriptions
-        of database columns).
+        Job ads are stored as a list of dictionaries. Each dictionary has keys
+        for database columns id, title, url and description (see :class:`JobAdDB` 
+        description for details).
         """
         return self._job_ads
 
     def _save_job_ad(self):
-        """Saves parsed job ad to instance job ad list. 
+        """Saves parsed job in instance. 
 
         Should only be called once parsing of ad is complete.  
         """
@@ -69,15 +63,38 @@ class JobAdParser(HTMLParser):
                              "title" : re.sub("\s{2,}", " ", self._title.strip()), 
                              "url" : self._url, 
                              "description" : re.sub("\s{2,}", " ", self._additional.strip())})
+    @abc.abstractmethod
+    def _generate_URL(self, search_term):
+        """Generates URL for search term.
+
+        Arguments
+        ----------
+        search_term : str
+            Search term to generate URL for.
+        """
+        return self
+
 
 class IndeedParser(JobAdParser):
-    """Implementation of parsing for Indeed.fi.
+    """Subclass of :class:`JobAdParser`. Implementation of parsing for Indeed.fi.
     """
 
     def __init__(self):
         super(IndeedParser, self).__init__()
         self._job = 0 #inside job ad
         self._add = 0 #parsing done
+
+    def _generate_URL(self, search_term):
+        """Generates URL for search term for indeed.fi.
+
+        Arguments
+        ----------
+        search_term : str
+            Search term to generate URL for.
+        """
+        search_term = search_term.replace(" ", "%20")
+
+        return "http://www.indeed.fi/jobs?as_and=%s&as_phr=&as_any=&as_not=&as_ttl=&as_cmp=&jt=all&st=&radius=50&l=Helsinki&fromage=any&limit=50&sort=date&psf=advsrch" % quote_plus(search_term)
 
     def handle_starttag(self, tag, attrs):
         if (tag == "h2" and ('class', 'jobtitle') in attrs):
@@ -111,13 +128,23 @@ class IndeedParser(JobAdParser):
             self._additional = self._additional + " " + data.strip()
 
 class MonsterParser(JobAdParser):
-    """Implementation of parsing for Monster.fi.
+    """Subclass of :class:`JobAdParser`. Implementation of parsing for Monster.fi.
     """
     
     def __init__(self):
         super(MonsterParser, self).__init__()
         self._job = 0 #inside job ad
         self._add = 0 #parsing done
+
+    def _generate_URL(self, search_term):
+        """Generates URL for search term for monster.fi.
+
+        Arguments
+        ----------
+        search_term : str
+            Search term to generate URL for.
+        """
+        return "http://hae.monster.fi/ty%%C3%%B6paikkoja/?q=%s&cy=fi" % quote_plus(search_term)
 
     def handle_starttag(self, tag, attrs):
         if (self._job != 1 and tag == "div" and ('class', 'jobTitleContainer') in attrs):
@@ -152,7 +179,7 @@ class MonsterParser(JobAdParser):
 
 
 class DuunitoriParser(JobAdParser):
-    """Implementation of parsing for Duunitori.fi.
+    """Subclass of :class:`JobAdParser`. Implementation of parsing for Duunitori.fi.
     """
       
     def __init__(self):
@@ -161,6 +188,16 @@ class DuunitoriParser(JobAdParser):
         self._job_list = 1      #inside search results
         self._title_stat = 0    #inside title element
         self._title_added = 0   #title has been added
+
+    def _generate_URL(self, search_term):
+        """Generates URL for search term for duunitori.fi.
+
+        Arguments
+        ----------
+        search_term : str
+            Search term to generate URL for.
+        """
+        return "http://duunitori.fi/tyopaikat/?haku=%s&alue=" % quote_plus(search_term)
 
     def handle_starttag(self, tag, attrs):
         if (tag == "section" and ('class', 'setion--secondary') in attrs):
