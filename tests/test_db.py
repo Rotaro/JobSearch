@@ -7,7 +7,7 @@ import unittest
 import jobadcollector.db_controls as db_controls
 
 
-class JobsAdDBTestCase(unittest.TestCase):
+class JobAdDBTestCase(unittest.TestCase):
     """Various tests for JobAdDB class.
     """
 

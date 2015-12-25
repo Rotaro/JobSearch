@@ -34,6 +34,8 @@ class JobAdCollector:
         Path to local R libraries. Only needed if classification is True.
     """
 
+    _sites = parsers.JobAdParser.parsers_impl
+
     def __init__(self, search_terms, db_name, classification=CLASSIFICATION, 
                  Rlibpath="C:/Users/SuperSSD/Documents/R/win-library/3.2"):
         if (not isinstance(search_terms, list) or db_name == ""):
@@ -42,7 +44,6 @@ class JobAdCollector:
         self.search_terms = search_terms
         self.db_name = db_name
         self.classification = classification
-        self.sites = ['indeed', 'duunitori', 'monster']
         self.Rlibpath = ""
         if classification == True:
             self.Rlibpath = Rlibpath

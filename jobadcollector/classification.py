@@ -181,16 +181,17 @@ class JobAdClassification:
         }
         """
 
+    #columns needed for training model
+    _train_columns = ["site", "searchterm", "title", "description", 
+                      "relevant"]
+    #columns needed for classifying new job ads
+    _class_columns = ["id", "site", "searchterm", "title", "description"]
+
     def __init__(self, Rlibpath, search_terms, sites, language):
         self._RFmodel = None
         self._language = language
         self._search_terms = search_terms
         self._sites = sites
-        #columns needed for training model
-        self._train_columns = ["site", "searchterm", "title", "description", 
-                               "relevant"]
-        #columns needed for classifying new job ads
-        self._class_columns = ["id", "site", "searchterm", "title", "description"]
         #random forest model parameters
         self._threshold = 0.3
         self._splitratio = 0.7
@@ -245,7 +246,7 @@ class JobAdClassification:
     
         return string
     
-    def create_R_dataframe(self, job_ads, include_columns):
+    def _create_R_dataframe(self, job_ads, include_columns):
         """Converts job ads to R dataframe.
 
         Arguments
@@ -293,7 +294,7 @@ class JobAdClassification:
         threshold = self._threshold
 
         #convert to dataframe and clean ads
-        dataf = self.create_R_dataframe(class_ads, self._train_columns)
+        dataf = self._create_R_dataframe(class_ads, self._train_columns)
         dataf = self._R_functions.cleanJobAds(dataf, StrVector(self._search_terms),
                                               StrVector(self._sites))
         dataf = self._R_functions.createJoinDTM(dataf, self._language.lower())
@@ -354,7 +355,7 @@ class JobAdClassification:
             recommendation.
         """
         #convert to dataframe and clean ads
-        dataf = self.create_R_dataframe(job_ads, self._class_columns)
+        dataf = self._create_R_dataframe(job_ads, self._class_columns)
         ids = dataf.rx2('id') 
         dataf = self._R_functions.cleanJobAds(dataf, StrVector(self._search_terms), 
                                               StrVector(self._sites))

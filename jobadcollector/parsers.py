@@ -20,6 +20,8 @@ class JobAdParser(HTMLParser, metaclass=abc.ABCMeta):
 
     """
 
+    parsers_impl = ['indeed', 'duunitori', 'monster']
+
     def __init__(self):
         super(JobAdParser, self).__init__(convert_charrefs=True)
         #storage place for job ads

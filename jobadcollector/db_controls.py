@@ -32,14 +32,15 @@ class JobAdDB:
     filename : str
         Name of database file. If file doesn't exist, a new one is created.
     """
-    
+
+    #columns in database
+    _db_columns = ["site", "searchterm", "id", "title", "url", 
+                            "description", "date", "language", "relevant",
+                            "recommendation"]
+
     def __init__(self, filename):
         self.db_filename = filename
         self.conn = None
-        #columns in database
-        self._db_columns = ["site", "searchterm", "id", "title", "url", 
-                            "description", "date", "language", "relevant",
-                            "recommendation"]
 
     def _connect_db(self):
         """Opens connection to instance database.

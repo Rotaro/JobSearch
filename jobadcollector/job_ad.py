@@ -18,21 +18,23 @@ class JobAd(dict):
       model)
 
     """
+    
+    _cols = ["site", "searchterm", "id", "title", "url", "description", "date",
+             "language", "relevant", "recommendation"]
 
     def __init__(self):
         super(JobAd, self).__init__()
-        self['site'] = None
-        self['searchterm'] = None
-        self['id'] = None
-        self['title'] = None
-        self['url'] = None
-        self['description'] = None
-        self['date'] = None
-        self['language'] = None
-        self['language'] = None
-        self['language'] = None
-        self['relevant'] = None
-        self['recommendation'] = None
+        for key in self._cols:
+            self[key] = None
 
+    def __setitem__(self, key, val):
+        if key not in self._cols:
+            raise KeyError("Key not supported by JobAd.")
+        return super().__setitem__(key, val)
 
+    def __delitem__(self, key):
+        if key in self._cols:
+            self[key] = None
+        else:
+            return super().__delitem__(key)
 

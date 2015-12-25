@@ -3,7 +3,7 @@ import datetime
 import jobadcollector.classification as classification
 import os
 
-class ClassificationTestCase(unittest.TestCase):
+class JobAdClassificationTestCase(unittest.TestCase):
     """Class for testing classification of job ads. Rlibpath needs to be manually updated.
     """
     def setUp(self):
@@ -45,7 +45,7 @@ class ClassificationTestCase(unittest.TestCase):
     def test_create_dataframe(self):
         """Tests data frame is correctly created.
         """
-        df = self.JAC.create_R_dataframe(
+        df = self.JAC._create_R_dataframe(
                 self.job_ads_classified, self.class_columns)
         for col in self.class_columns:
             df_col = iter(df.rx2(col))
