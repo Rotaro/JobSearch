@@ -3,6 +3,8 @@ import random
 import time
 from . import parsers, db_controls, db_gui
 
+from .job_ad import JobAd
+
 try: 
     CLASSIFICATION = True
     from . import classification
@@ -75,7 +77,7 @@ class JobAdCollector:
                 indeed_parser.parse(search_term)
                 monster_parser.parse(search_term)
                 duunitori_parser.parse(search_term)
-                #add site and search term to job ads (modifies parser instance!)
+                #add site and search term to job ads (modifies job ad  instances!)
                 for job_ad in indeed_parser.get_job_ads():
                     job_ad.update({'site': 'indeed', 'searchterm': search_term}) 
                 datab.store_ads(indeed_parser.get_job_ads())
@@ -164,7 +166,8 @@ class JobAdCollector:
         gui = db_gui.JobAdGUI(datab.get_ads(date_start, date_end))
         gui.mainloop()
         new_data = gui.ad_storage #dictionary with ids as keys
-        new_data_dict = [dict(zip(gui.db_data_columns, new_data[id])) for id in new_data]
+        new_data_dict = [JobAd.create(dict(zip(gui.db_data_columns, new_data[id])))
+                         for id in new_data]
         
         datab.update_ads(new_data_dict)
 
@@ -195,10 +198,10 @@ class JobAdCollector:
             raise EnvironmentError("Classification not enabled in JobAdCollector")
         
         JAC = classification.JobAdClassification(self.Rlibpath, self.search_terms, 
-                                               self.sites, language)
+                                               self._sites, language)
         datab = db_controls.JobAdDB(self.db_name)
         RFmodel = JAC.train_model(
-                  datab.get_classified_ads(date_start, date_end, language, 1), language)
+                  datab.get_classified_ads(date_start, date_end, language, 1))
         
         datab.disconnect_db()
 
@@ -291,7 +294,7 @@ class JobAdCollector:
             :class:`JobAdClassification` instance with model set.    
         """
         JAC = classification.JobAdClassification(self.Rlibpath, 
-                                               self.search_terms, self.sites, language)
+                                               self.search_terms, self._sites, language)
         JAC.load_model(filename)
 
         return JAC

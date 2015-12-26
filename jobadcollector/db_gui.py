@@ -3,19 +3,20 @@ import textwrap
 import sys
 from collections import OrderedDict
 
+from .job_ad import JobAd
 
 
 class JobAdGUI(tk.Frame):
-    """
-    Application with GUI for classifying job ads used in JobAdsCollector.
+    """Tkinter application for classifying :class:`JobAd` instances.
 
-    Arguments:
-    db_data - Job ads as list of dictionaries. Each dictionary should
-              have keys for all job ad columns detailed in JobAdsCollector.
+    Arguments
+    ----------
+    db_data : list
+        List of :class:`JobAd` instances.
     """
 
     #db columns
-    db_data_columns = ['site', 'searchterm', 'id', 'title', 'url', 
+    _db_data_columns = ['site', 'searchterm', 'id', 'title', 'url', 
                        'description', 'date','language', 'relevant',
                        'recommendation']
     #options to show for classification
@@ -25,7 +26,7 @@ class JobAdGUI(tk.Frame):
     def __init__(self, db_data):
         if (len(db_data) == 0):
             raise ValueError("No job ads provided to JobAdGUI.")
-        #make dictionary of data
+        #use ordered dictionary for grid display 
         self.ad_storage = OrderedDict()
         for entry in db_data:
             self.ad_storage[entry['id']] = [entry[column] for column in self.db_data_columns]
@@ -70,8 +71,8 @@ class JobAdGUI(tk.Frame):
 
         #table headers
         current_row = []
-        for column in range(0, len(self.db_data_columns)):
-            label = tk.Label(self.frame, text = "%s" % self.db_data_columns[column],
+        for column in range(0, len(self._db_data_columns)):
+            label = tk.Label(self.frame, text = "%s" % self._db_data_columns[column],
                               borderwidth=0)
             label.grid(row=0, column=column, sticky="nsew", padx=1, pady=1)
             current_row.append(label)
@@ -85,11 +86,11 @@ class JobAdGUI(tk.Frame):
         #Buttons
         button = tk.Button(self.frame,text="Store data and reload", 
                            command=self.storeReloadData)
-        button.grid(row=1, column=len(self.db_data_columns), sticky="nsew", 
+        button.grid(row=1, column=len(self._db_data_columns), sticky="nsew", 
                     padx=1, pady=1)
         button = tk.Button(self.frame,text="Store data and exit", 
                            command=self.storeDataExit)
-        button.grid(row=2, column=len(self.db_data_columns), sticky="nsew", 
+        button.grid(row=2, column=len(self._db_data_columns), sticky="nsew", 
                     padx=1, pady=1)
         
         #process job ads   
@@ -102,17 +103,17 @@ class JobAdGUI(tk.Frame):
                 for column in range(0, len(self.ad_storage[id])):
                     #Divide table text into lines and set widths of columns. Also 
                     #initialize optionmenus for language and relevant columns.
-                    if(self.db_data_columns[column] == "url"):
+                    if(self._db_data_columns[column] == "url"):
                         label = tk.Label(self.frame, text = "%s" % "\n".join(
                             textwrap.wrap(self.ad_storage[id][column], 100)),
                             borderwidth=0,width=1)
                         label.grid(row=i, column=column, sticky="nsew", padx=1, pady=1)
-                    elif(self.db_data_columns[column] == "description"):
+                    elif(self._db_data_columns[column] == "description"):
                         label = tk.Label(self.frame, text = "%s" %
                             "\n".join(textwrap.wrap(self.ad_storage[id][column], 100)),
                             borderwidth=0)
                         label.grid(row=i, column=column, sticky="nsew", padx=1, pady=1)
-                    elif(self.db_data_columns[column] == "language"):
+                    elif(self._db_data_columns[column] == "language"):
                         variable = tk.StringVar(self.frame)
                         variable.set(self.ad_storage[id][column])
                         label = tk.OptionMenu(self.frame, variable,
@@ -120,7 +121,7 @@ class JobAdGUI(tk.Frame):
                         #store as attribute to access later (might be another way?)
                         label.variable = variable
                         label.grid(row=i, column=column, sticky="nsew", padx=1, pady=1)
-                    elif(self.db_data_columns[column] == "relevant"):
+                    elif(self._db_data_columns[column] == "relevant"):
                         variable = tk.StringVar(self.frame)
                         variable.set(self.ad_storage[id][column])
                         label = tk.OptionMenu(self.frame, variable, 

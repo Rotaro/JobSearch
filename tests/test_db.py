@@ -5,7 +5,7 @@ import unittest
 
 
 import jobadcollector.db_controls as db_controls
-
+from jobadcollector.job_ad import JobAd
 
 class JobAdDBTestCase(unittest.TestCase):
     """Various tests for JobAdDB class.
@@ -31,6 +31,7 @@ class JobAdDBTestCase(unittest.TestCase):
             {"site" : "worst job ads site", "searchterm" : "worst jobs",
             "id": "dsfewf32", "title" : "Bad Job", "url" :"http://www.poor.zyx",
             "description":"the absolutely worst job"}]
+        self.job_ads = [JobAd.create(ad) for ad in self.job_ads]
         self.job_ads_stored = [{"site" : "best job ads site", "searchterm" : "greatest jobs",
             "id": "xyz412412se", "title" : "Great Job", "url" :"http://www.great.zyx",
             "description":"the absolutely best job", "date" : datetime.date.today(), 
@@ -39,12 +40,14 @@ class JobAdDBTestCase(unittest.TestCase):
             "id": "dsfewf32", "title" : "Bad Job", "url" :"http://www.poor.zyx",
             "description":"the absolutely worst job", "date" : datetime.date.today(), 
             "language" : None, "relevant": None, "recommendation" : None}]
+        self.job_ads_stored = [JobAd.create(ad) for ad in self.job_ads_stored]
         self.job_ads_garbage = [{"site" : "best job ads site", "searchterm" : "greatest jobs",
             "id": "xyz412412se", "title" : "Great Job", "url" :"http://www.great.zyx",
             "description":"the absolutely best job", "falsekey" : "garbage"}, 
             {"site" : "worst job ads site", "searchterm" : "worst jobs",
             "id": "dsfewf32", "title" : "Bad Job", "url" :"http://www.poor.zyx",
             "description":"the absolutely worst job", "falsekey" : "garbage"}]
+        self.job_ads_garbage = [JobAd.create(ad) for ad in self.job_ads_garbage]
         self.job_ads_classified = [{"site" : "best job ads site", "searchterm" : "greatest jobs",
             "id": "xyz412412se", "title" : "Great Job", "url" :"http://www.great.zyx",
             "description":"the absolutely best job", "date" : datetime.date.today(), 
@@ -53,13 +56,14 @@ class JobAdDBTestCase(unittest.TestCase):
             "id": "dsfewf32", "title" : "Bad Job", "url" :"http://www.poor.zyx",
             "description":"the absolutely worst job", "date" : datetime.date.today(), 
             "language" : "English", "relevant": 0, "recommendation" : None}]
+        self.job_ads_classified = [JobAd.create(ad) for ad in self.job_ads_classified]
         self.job_ads_classified_less = [{"site" : "best job ads site", 
             "searchterm" : "greatest jobs", "title" : "Great Job", 
             "description":"the absolutely best job", "language" : "English", "relevant": 1}, 
             {"site" : "worst job ads site", "searchterm" : "worst jobs",
             "title" : "Bad Job", "description":"the absolutely worst job", 
             "language" : "English", "relevant": 0}]
-
+        self.job_ads_classified_less = [JobAd.create(ad) for ad in self.job_ads_classified_less]
 
     def tearDown(self):
         self.db.disconnect_db()

@@ -1,3 +1,5 @@
+import datetime
+
 
 class JobAd(dict):
     """Job ad container.
@@ -26,10 +28,11 @@ class JobAd(dict):
         super(JobAd, self).__init__()
         for key in self._cols:
             self[key] = None
+        self["date"] = datetime.date.today()
 
     def __setitem__(self, key, val):
         if key not in self._cols:
-            raise KeyError("Key not supported by JobAd.")
+            raise KeyError("Key not column in JobAd.")
         return super().__setitem__(key, val)
 
     def __delitem__(self, key):
@@ -37,4 +40,49 @@ class JobAd(dict):
             self[key] = None
         else:
             return super().__delitem__(key)
+
+    @classmethod
+    def create(cls, dictionary):
+        """Creates :class:`JobAd` instance from dictionary.
+
+        Removes keys not belonging to JobAD.
+
+        Arguments
+        ----------
+        dictionary : dict
+            Dictionary with :class:`JobAd` columns as keys.
+
+        Returns
+        ----------
+        job_ad : JobAd
+            :class:`JobAd` instance with column values from dictionary.
+
+        """
+        job_ad = JobAd()
+        for key in dictionary:
+            if key in cls._cols:
+                job_ad[key] = dictionary[key]
+
+        return job_ad
+
+
+    def columns_not_none(self, columns):
+        """Checks that values of columns are not none.
+        
+        Arguments
+        ----------
+        columns : list
+            List of column names. 
+
+        Returns
+        ----------
+        not_none : bool
+            Whether columns are not none.
+        """
+        not_none = True
+        for col in columns:
+            if self[col] == None:
+                return 0
+
+        return not_none
 

@@ -4,6 +4,8 @@ from rpy2.robjects.packages import SignatureTranslatedAnonymousPackage as STAP, 
 import datetime
 import time
 
+from .job_ad import JobAd
+
 class JobAdClassification:
     """Classification of job ads using R and rpy2.
 
@@ -252,11 +254,10 @@ class JobAdClassification:
         Arguments
         ----------
         job_ads : list
-            List of dictionaries of job ads. Each dictionary should have keys for 
-            all database columns (see :class:`JobAdDB` description for details).
+            List of :class:`JobAd` instances.
         include_columns : list
             List of strings. Defines which columns are included in the dataframe. 
-            Each column has to have a corresponding key in the job ad dictionaries.    
+
         Returns
         ----------
         dataf : :class:`robjects.DataFrame`
@@ -283,9 +284,8 @@ class JobAdClassification:
         Arguments
         ----------
         class_ads : list
-            List of dictionaries of job ads, used to train model. Each dictionary
-            should have keys for site, searchterm, title, description and relevant.
-            See the :class:`JobAdsDB` class for details.
+            List of :class:`JobAd` instances used to train model. Each instance
+            should have site, searchterm, title, description and relevant defined.
         """
         ##parameters for training
         #typical value
@@ -343,16 +343,15 @@ class JobAdClassification:
 
         Arguments
         ----------
-        ads : list
-            List of dictionaries of job ads. Each dictionary should contain
-            keys for id, site, searchterm, title, description (see :class:`JobAdDB`
-            description for details).
+        job_ads : list
+            List of :class:`JobAd` instances. Each instance should have 
+            id, site, searchterm, title and description defined.
 
         Returns
         ----------
         results : list
-            List of dictionaries of job ads. Each ad contains keys for id and
-            recommendation.
+            List of :class:`JobAd` instances. Each instance has id and
+            recommendation defined.
         """
         #convert to dataframe and clean ads
         dataf = self._create_R_dataframe(job_ads, self._class_columns)
@@ -366,15 +365,14 @@ class JobAdClassification:
         pred = self._R_functions.RFpred(self._RFmodel, dataf)
 
         #combine predictions with ids in a list of dictionaries
-        results = [{"id" : ids[i], "recommendation": int(pred[i])-1} 
+        results = [JobAd.create({"id" : ids[i], "recommendation": int(pred[i])-1}) 
                    for i in range(0, robjects.r['length'](ids)[0])]
                            
         return results
         
 
     def _determine_lang(self, title, description):
-        """
-        Tries to determine which language a job ad is using the textcat package. 
+        """Tries to determine which language a job ad is using the textcat package. 
         Only differentiates between Finnish and English; returns English if another
         language is recognized.
 
@@ -411,7 +409,7 @@ class JobAdClassification:
         else:
             return "English"
 
-    def det_lang_ads(self, ads):
+    def det_lang_ads(self, job_ads):
         """Attempts to determine language of a list of job ads.
 
         Returns list of dictionaries containing keys for id and 
@@ -419,19 +417,19 @@ class JobAdClassification:
 
         Arguments
         ----------
-        ads : list
-            List of dictionaries of job ads. Each dictionary should contain 
-            keys for id, title and description.
+        job_ads : list
+            List of :class:`JobAd` instances. Each instance should have 
+            id, title and description defined.
         Returns
         ----------
         results : list
-            List of dictionaries of job ads. Each ad contains keys for id and
-            language.
+            List of :class:`JobAd` instances. Each instance has id and
+            language defined.
         """
 
         results = [{"id": ad["id"], 
                     "language": self._determine_lang(ad["title"], ad["description"])}
-                   for ad in ads]
+                   for ad in job_ads]
 
         return results
 

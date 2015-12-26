@@ -4,10 +4,12 @@ from urllib.parse import urlparse, quote_plus
 import abc
 import re
 
+from .job_ad import JobAd
+
 class JobAdParser(HTMLParser, metaclass=abc.ABCMeta):
     """Abstract :class:`HTMLParser` subclass for parsing job ad sites.
 
-    Contains functions for starting search and returning parsed job_ads. 
+    Contains functions for starting search and returning parsed :class:`JobAd` instances. 
     :class:`JobAdParser` is further subclassed for implementation of parsing 
     logic for particular sites. The implementation should do the following:
 
@@ -53,6 +55,11 @@ class JobAdParser(HTMLParser, metaclass=abc.ABCMeta):
         Job ads are stored as a list of dictionaries. Each dictionary has keys
         for database columns id, title, url and description (see :class:`JobAdDB` 
         description for details).
+
+        Returns
+        ----------
+        job_ads : list
+            List of :class:`JobAd` instances.
         """
         return self._job_ads
 
@@ -61,10 +68,13 @@ class JobAdParser(HTMLParser, metaclass=abc.ABCMeta):
 
         Should only be called once parsing of ad is complete.  
         """
-        self._job_ads.append({"id" : self._id,
-                             "title" : re.sub("\s{2,}", " ", self._title.strip()), 
-                             "url" : self._url, 
-                             "description" : re.sub("\s{2,}", " ", self._additional.strip())})
+        self._job_ads.append(
+            JobAd.create({
+                "id" : self._id,
+                "title" : re.sub("\s{2,}", " ", self._title.strip()), 
+                "url" : self._url, 
+                "description" : re.sub("\s{2,}", " ", self._additional.strip())}))
+
     @abc.abstractmethod
     def _generate_URL(self, search_term):
         """Generates URL for search term.
