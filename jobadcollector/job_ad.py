@@ -1,4 +1,4 @@
-import datetime
+﻿import datetime
 
 
 class JobAd(dict):
@@ -20,7 +20,7 @@ class JobAd(dict):
       model)
 
     """
-    
+    #columns allowed in JobAd instance
     _cols = ["site", "searchterm", "id", "title", "url", "description", "date",
              "language", "relevant", "recommendation"]
 
@@ -45,7 +45,7 @@ class JobAd(dict):
     def create(cls, dictionary):
         """Creates :class:`JobAd` instance from dictionary.
 
-        Removes keys not belonging to JobAD.
+        Removes keys not belonging to JobAd.
 
         Arguments
         ----------
@@ -71,7 +71,7 @@ class JobAd(dict):
         
         Arguments
         ----------
-        columns : list
+        columns : list[str]
             List of column names. 
 
         Returns

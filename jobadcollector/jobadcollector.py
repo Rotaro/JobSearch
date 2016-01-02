@@ -1,16 +1,22 @@
 ﻿import datetime
 import random
 import time
-from . import parsers, db_controls, db_gui
 
-from .job_ad import JobAd
+import jobadcollector.parsers as parsers 
+import jobadcollector.db_controls as db_controls 
+import jobadcollector.db_gui as db_gui 
+
+from jobadcollector.job_ad import JobAd
 
 try: 
+    #Status of import of classification module. If import fails, functions 
+    #using classification will be disabled (i.e. return empty).
     CLASSIFICATION = True
-    from . import classification
+    import jobadcollector.classification as classification
 except ImportError:
     CLASSIFICATION = False
-    print("""Classification module import failed. Classification functions are disabled.""")
+    print("""Classification module import failed. Classification functions 
+             are disabled.""")
 
 class JobAdCollector:
     """Operation of job ad collections.
@@ -23,61 +29,57 @@ class JobAdCollector:
 
     Arguments
     ----------
-    search_terms : list 
+    search_terms : list[str]
         Search terms. Can be left empty if not needed.
     db_name : str
         Filename of local sqlite database. A new one will be created if file
         doesn't exist.
-    Keyword Arguments
-    ----------
-    classification : bool 
-        Classification support. rpy2 is only imported if set to True.
     Rlibpath : str
-        Path to local R libraries. Only needed if classification is True.
+        Path to local R libraries. Only needed if classification module was 
+        succesfully imported.
     """
 
     _sites = parsers.JobAdParser.parsers_impl
 
-    def __init__(self, search_terms, db_name, classification=CLASSIFICATION, 
+    def __init__(self, search_terms, db_name, 
                  Rlibpath="C:/Users/SuperSSD/Documents/R/win-library/3.2"):
         if (not isinstance(search_terms, list) or db_name == ""):
-            raise ValueError("Invalid arguments for JobAdCollector, search_terms \
-                              should be a list or db_name missing.")
-        self.search_terms = search_terms
-        self.db_name = db_name
-        self.classification = classification
-        self.Rlibpath = ""
-        if classification == True:
-            self.Rlibpath = Rlibpath
+            raise ValueError("Invalid arguments for JobAdCollector. search_terms \
+                              should be a list and db_name length larger than 0.")
+        self._search_terms = search_terms
+        self._db_name = db_name
+        self._Rlibpath = ""
+        self._classification = CLASSIFICATION
+        if self._classification == True:
+            self._Rlibpath = Rlibpath
 
     def start_search(self, search_term=None):
         """Starts search for job advertisements using provided search term(s). 
 
         HTML requests are randomly delayed by 3 to 5 seconds. 
 
-        Keyword Arguments
+        Arguments
         ----------
-        search_term : list
+        search_term : list[str]
             Search term(s) to use. If None, instance variable search_terms,
             set during initialization, is used.
         """
         random.seed(1222)
-        datab = db_controls.JobAdDB(self.db_name)
+        datab = db_controls.JobAdDB(self._db_name)
         if (search_term != None):
             searchables = [search_term]
         else:
-            searchables = self.search_terms
+            searchables = self._search_terms
         if isinstance(searchables, list):
             for search_term in searchables:
                 print("Searching for \"%s\"." % search_term)
-                time.sleep(random.randint(3,5))
                 monster_parser = parsers.MonsterParser()
                 indeed_parser = parsers.IndeedParser()
                 duunitori_parser = parsers.DuunitoriParser()
                 indeed_parser.parse(search_term)
                 monster_parser.parse(search_term)
                 duunitori_parser.parse(search_term)
-                #add site and search term to job ads (modifies job ad  instances!)
+                #add site and search term to job ads (modifies JobAd instances!)
                 for job_ad in indeed_parser.get_job_ads():
                     job_ad.update({'site': 'indeed', 'searchterm': search_term}) 
                 datab.store_ads(indeed_parser.get_job_ads())
@@ -87,6 +89,8 @@ class JobAdCollector:
                 for job_ad in duunitori_parser.get_job_ads():
                     job_ad.update({'site': 'duunitori', 'searchterm': search_term}) 
                 datab.store_ads(duunitori_parser.get_job_ads())
+                time.sleep(random.randint(3,5))
+
 
     def output_results(self, date_start, date_end, output_name, output_type):
         """Outputs job ads from database as an HTML or CSV file.
@@ -108,8 +112,8 @@ class JobAdCollector:
             Type of output file, "csv" or "html" possible.
         """
         
-        datab = db_controls.JobAdDB(self.db_name)
-        print("Writing to %s from %s." % (output_name, self.db_name))
+        datab = db_controls.JobAdDB(self._db_name)
+        print("Writing to %s from %s." % (output_name, self._db_name))
         if (output_type == "html"):
             datab.write_HTML_file(datab.get_ads(date_start, date_end), output_name)
         elif (output_type == "csv"):
@@ -124,7 +128,7 @@ class JobAdCollector:
 
         All job ads between argument dates are included in the output.
 
-        Keyword Arguments
+        Arguments
         ----------
         date_start : :class:`datetime`
             Earliest date of job ads. Default is start of 2015.
@@ -135,12 +139,12 @@ class JobAdCollector:
         output_name : str
             Name of the file to output results to. 
         output_type : str
-            Type of output file, "csv" or "html"
+            Type of output file, "csv" or "html".
         """
         
-        datab = db_controls.JobAdDB(self.db_name)
+        datab = db_controls.JobAdDB(self._db_name)
         ads = datab.get_classified_ads(date_start, date_end, language, 1)
-        print("Writing to %s from %s." % (output_name, self.db_name))
+        print("Writing to %s from %s." % (output_name, self._db_name))
         if (output_type == "html"):
             datab.write_CSV_file(ads, output_name)
         elif (output_type == "csv"):
@@ -161,7 +165,7 @@ class JobAdCollector:
             included. If both date_start and date_end are None, all job ads in 
             the database are included.
         """
-        datab = db_controls.JobAdDB(self.db_name)
+        datab = db_controls.JobAdDB(self._db_name)
 
         gui = db_gui.JobAdGUI(datab.get_ads(date_start, date_end))
         gui.mainloop()
@@ -190,16 +194,16 @@ class JobAdCollector:
 
         Returns
         ----------
-        JAC : :class:`JobAdClassification` 
-            :class:`JobAdClassification`  instance with language, model,
+        JAC : JobAdClassification
+            :class:`JobAdClassification` instance with language, model,
             search_terms and sites set.
         """
-        if (self.classification == False):
+        if (self._classification == False):
             raise EnvironmentError("Classification not enabled in JobAdCollector")
         
-        JAC = classification.JobAdClassification(self.Rlibpath, self.search_terms, 
+        JAC = classification.JobAdClassification(self._Rlibpath, self._search_terms, 
                                                self._sites, language)
-        datab = db_controls.JobAdDB(self.db_name)
+        datab = db_controls.JobAdDB(self._db_name)
         RFmodel = JAC.train_model(
                   datab.get_classified_ads(date_start, date_end, language, 1))
         
@@ -224,11 +228,11 @@ class JobAdCollector:
             included. If both date_start and date_end are None, all job ads in 
             the database are included.
         """
-        if (self.classification == False):
-            raise EnvironmentError("Classification not enabled in JobAdCollector")
+        if (self._classification == False):
+            raise EnvironmentError("Classification not enabled in JobAdCollector.")
                                     
-        datab = db_controls.JobAdDB(self.db_name)
-        JAC = classification.JobAdClassification(self.Rlibpath, [], [], "")
+        datab = db_controls.JobAdDB(self._db_name)
+        JAC = classification.JobAdClassification(self._Rlibpath, [], [], "")
 
         ads = datab.get_ads(date_start, date_end)
         lang_ads = JAC.det_lang_ads(ads)
@@ -245,7 +249,7 @@ class JobAdCollector:
         Arguments
         ----------
         JAC : :class:`JobAdClassification`  
-            Has to have model set.
+            Fully set up :class:`JobAdClassification` instance.
         language : str
             Language of model and job ads to provide recommendations for.
         date_start : :class:`datetime`
@@ -256,11 +260,13 @@ class JobAdCollector:
             included. If both date_start and date_end are None, all job ads in 
             the database are included.
         """
+        if (self._classification == False):
+            raise EnvironmentError("Classification not enabled in JobAdCollector.")
                                       
-        datab = db_controls.JobAdDB(self.db_name)
+        datab = db_controls.JobAdDB(self._db_name)
 
         ads = datab.get_ads(date_start, date_end, language)
-        rec_ads = JAC.classify_ads(ads)
+        rec_ads = JAC.recommend_ads(ads)
         datab.update_ads_recommendation(rec_ads)
         datab.disconnect_db()
         
@@ -272,10 +278,12 @@ class JobAdCollector:
         Arguments
         ----------
         JAC : :class:`JobAdClassification` 
-            Has to have model set.
+            Fully set up :class:`JobAdClassification` instance.
         filename : str
             Name of file to save model in. Existing files are overwritten.
         """
+        if (self._classification == False):
+            raise EnvironmentError("Classification not enabled in JobAdCollector.")
 
         JAC.save_model(filename)
 
@@ -285,16 +293,20 @@ class JobAdCollector:
         Arguments
         ----------
         language : str
-            Language of model and job ads to provide recommendations for.
+            Language of model.
         filename : str
             Name of file to load model from.
         Returns
         ----------
-        :class:`JobAdClassification`  :
+        JAC : :class:`JobAdClassification`
             :class:`JobAdClassification` instance with model set.    
         """
-        JAC = classification.JobAdClassification(self.Rlibpath, 
-                                               self.search_terms, self._sites, language)
+
+        if (self._classification == False):
+            raise EnvironmentError("Classification not enabled in JobAdCollector.")
+
+        JAC = classification.JobAdClassification(self._Rlibpath, 
+                                               self._search_terms, self._sites, language)
         JAC.load_model(filename)
 
         return JAC

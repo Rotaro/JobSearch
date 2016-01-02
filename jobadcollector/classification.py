@@ -10,17 +10,17 @@ class JobAdClassification:
     """Classification of job ads using R and rpy2.
 
     This class provides training of a machine learning model for 
-    recommendations for new job ads. The class also provides classification
-    of languages 
+    recommendations for new job ads, and determination of languages of
+    job ads.
 
     Arguments
     ---------
     Rlibpath : str 
         Path to local R libraries.
-    search_terms : list
+    search_terms : list[str]
         All search terms used in job ad collections. Needed to include all factor
         levels in the machine learning model.
-    sites : list
+    sites : list[str]
         All job sites used in job ad collections. Needed to include all factor
         levels in the model.
     language : str
@@ -253,10 +253,10 @@ class JobAdClassification:
 
         Arguments
         ----------
-        job_ads : list
+        job_ads : list[:class:`JobAd`]
             List of :class:`JobAd` instances.
-        include_columns : list
-            List of strings. Defines which columns are included in the dataframe. 
+        include_columns : list[str]
+            Defines which columns are included in the dataframe. 
 
         Returns
         ----------
@@ -283,7 +283,7 @@ class JobAdClassification:
 
         Arguments
         ----------
-        class_ads : list
+        class_ads : list[:class:`JobAd`]
             List of :class:`JobAd` instances used to train model. Each instance
             should have site, searchterm, title, description and relevant defined.
         """
@@ -338,20 +338,19 @@ class JobAdClassification:
         self._RFmodel = robjects.r['get'](robjects.r['load'](filename))
 
 
-    def classify_ads(self, job_ads):
+    def recommend_ads(self, job_ads):
         """Provides recommendations for ads using instance model.
 
         Arguments
         ----------
-        job_ads : list
-            List of :class:`JobAd` instances. Each instance should have 
-            id, site, searchterm, title and description defined.
+        job_ads : list[:class:`JobAd`]
+            Each instance should have id, site, searchterm, title 
+            and description defined.
 
         Returns
         ----------
-        results : list
-            List of :class:`JobAd` instances. Each instance has id and
-            recommendation defined.
+        results : list[:class:`JobAd`]
+            Each instance has id and recommendation defined.
         """
         #convert to dataframe and clean ads
         dataf = self._create_R_dataframe(job_ads, self._class_columns)
@@ -410,19 +409,19 @@ class JobAdClassification:
             return "English"
 
     def det_lang_ads(self, job_ads):
-        """Attempts to determine language of a list of job ads.
+        """Attempts to determine language of job ads.
 
-        Returns list of dictionaries containing keys for id and 
-        language.
+        Returns list of :class:`JobAd` instances with id and language.
 
         Arguments
         ----------
-        job_ads : list
+        job_ads : list[:class:`JobAd`]
             List of :class:`JobAd` instances. Each instance should have 
             id, title and description defined.
+
         Returns
         ----------
-        results : list
+        results : list[:class:`JobAd`]
             List of :class:`JobAd` instances. Each instance has id and
             language defined.
         """

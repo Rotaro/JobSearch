@@ -76,13 +76,13 @@ class JobAdClassificationTestCase(unittest.TestCase):
         self.assertIsNotNone(self.JAC._RFmodel)
         self.assertEqual(RFmodelcp.r_repr(), self.JAC._RFmodel.r_repr())
     
-    def test_classify_ads(self):
+    def test_recommend_ads(self):
         """Tests ads are classified properly using provided model.
         """
         self.JAC._splitratio = 1.0 #no testing set, i.e. recommendation must be
                                    #the same as the original classification
         self.JAC.train_model(self.job_ads_classified)
-        class_ads = self.JAC.classify_ads(self.job_ads_classified)
+        class_ads = self.JAC.recommend_ads(self.job_ads_classified)
         for class_ad in class_ads:
             self.assertIsNotNone(class_ad["recommendation"])
             for ad in self.job_ads_classified:

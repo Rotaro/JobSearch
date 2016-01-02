@@ -11,7 +11,7 @@ class JobAdGUI(tk.Frame):
 
     Arguments
     ----------
-    db_data : list
+    db_data : list[:class:`JobAd`]
         List of :class:`JobAd` instances.
     """
 
@@ -56,8 +56,7 @@ class JobAdGUI(tk.Frame):
         
 
     def populateTable(self):
-        """
-        Populates GUI table with database information stored in the instance variable
+        """Populates GUI table with database information stored in the instance variable
         ad_storage. Should only be called while GUI is active!
         """
         if (self.ad_storage == None or self.frame == None):
@@ -142,14 +141,12 @@ class JobAdGUI(tk.Frame):
         print(self.canvas.winfo_width())
 
     def onFrameConfigure(self, event):
-        """
-        Reset the scroll region to encompass the inner frame.
+        """Reset the scroll region to encompass the inner frame.
         """
         self.canvas.configure(scrollregion=self.canvas.bbox("all"))
 
     def collectTableData(self):
-        """
-        Collects data from GUI table and stores it in the instance variable
+        """Collects data from GUI table and stores it in the instance variable
         ad_storage. Should only be called while GUI is active!
         """
         if (self.ad_storage == None or self.frame == None):
@@ -168,9 +165,8 @@ class JobAdGUI(tk.Frame):
 
      
     def storeReloadData(self):
-        """
-        Stores data from GUI table and reloads entries which haven't been
-        classified. Should only be called while GUI is active.
+        """Stores data from GUI table and reloads entries which haven't been
+        classified. Should only be called while GUI is active!
         """
         if (self.ad_storage == None or self.frame == None):
             return 
@@ -183,8 +179,8 @@ class JobAdGUI(tk.Frame):
         print("length ", len(self.frame._widgets), len(self.ad_storage))
 
     def storeDataExit(self):
-        """
-        Stores data from GUI table and exits.
+        """Stores data from GUI table and exits. Should only be called while
+        GUI is active!
         """
         if (self.ad_storage == None or self.frame == None):
             return 

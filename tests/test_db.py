@@ -72,15 +72,15 @@ class JobAdDBTestCase(unittest.TestCase):
         """Test class is created and initialized properly.
         """
         self.assertIsInstance(self.db, db_controls.JobAdDB)
-        self.assertEqual(self.db.db_filename, self.filename)
+        self.assertEqual(self.db._db_filename, self.filename)
 
 
     def test_connect_db(self):
         """Test database connection is established and JobEntries table created properly.
         """
         self.db._connect_db()
-        self.assertIsInstance(self.db.conn, db_controls.sqlite3.Connection)
-        c = self.db.conn.cursor()
+        self.assertIsInstance(self.db._conn, db_controls.sqlite3.Connection)
+        c = self.db._conn.cursor()
         table = c.execute("""SELECT * FROM sqlite_master 
                                WHERE type = 'table' and name = 'JobEntries'""")
         self.assertEqual(len(table.fetchall()), 1)
@@ -93,7 +93,7 @@ class JobAdDBTestCase(unittest.TestCase):
         """
         self.db._connect_db()
         self.db.disconnect_db()
-        self.assertRaises(sqlite3.ProgrammingError, self.db.conn.cursor)
+        self.assertIsNone(self.db._conn)
 
     def test_store_get_ads(self):
         """Test ads are stored and retrieved correctly.

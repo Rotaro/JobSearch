@@ -2,6 +2,7 @@
 import datetime
 import csv
 import codecs
+
 from .job_ad import JobAd
 
 class JobAdDB:
@@ -39,17 +40,17 @@ class JobAdDB:
                    "recommendation"]
 
     def __init__(self, filename):
-        self.db_filename = filename
-        self.conn = None
+        self._db_filename = filename
+        self._conn = None
 
     def _connect_db(self):
         """Opens connection to instance database.
         
         Creates an empty table for job ads in the database if one doesn't exist.
         """
-        if (self.db_filename != ""):
-            self.conn = sqlite3.connect(self.db_filename)
-            c = self.conn.cursor()
+        if (self._db_filename != ""):
+            self._conn = sqlite3.connect(self._db_filename)
+            c = self._conn.cursor()
             if (c.execute("""SELECT * FROM sqlite_master WHERE name='JobEntries';""")
                 .fetchone() == None):
                 c.execute("""CREATE TABLE JobEntries (site varchar(255), 
@@ -62,23 +63,24 @@ class JobAdDB:
     def disconnect_db(self):
         """Closes the database connection and frees the database file from use.
         """    
-        if (self.conn != None):
-            self.conn.close()
+        if self._conn != None:
+            self._conn.close()
+            self._conn = None
 
     def store_ads(self, job_ads):
         """Stores NEW job ads in the database, existing ones are not updated.
 
         Arguments
         ----------
-        job_ads : list
+        job_ads : list[:class:`JobAd`]
             List of :class:`JobAd` instances containing job ads. Each dictionary 
             should have keys for site, searchterm, id, title, description, url. 
             See :class:'JobAdDB` description for details.
         """
 
-        if(self.conn == None):
+        if self._conn == None:
             self._connect_db()
-        c = self.conn.cursor()
+        c = self._conn.cursor()
 
         for ad in job_ads:          
             c.execute("""
@@ -87,13 +89,13 @@ class JobAdDB:
             :language, :relevant, :recommendation)""", 
             ad)
 
-        self.conn.commit()
+        self._conn.commit()
 
     def get_ads(self, date_start, date_end, language="all"):
         """Returns job ads from the database.
 
         Filters by date and language. Jobs ads are returned as a list of
-        :class:`JobAd`. See :class:`JobAdDB` description for details.
+        :class:`JobAd`.
                 
         Arguments
         ----------
@@ -108,13 +110,13 @@ class JobAdDB:
             Language of job ads to output.
         Returns
         ----------
-        job_ads : list
+        job_ads : list[:class:`JobAd`]
             List of :class:`JobAd` instances.
         """
 
-        if(self.conn == None):
-            self.conn = sqlite3.connect(self.db_filename)
-        c = self.conn.cursor()
+        if self._conn == None:
+            self._conn = sqlite3.connect(self._db_filename)
+        c = self._conn.cursor()
 
         if language == "all":
             if (date_start == None and date_end == None):
@@ -139,22 +141,23 @@ class JobAdDB:
                 c.execute("""SELECT * FROM JobEntries
                              WHERE language = ? AND date >= ? AND date <= ? """,
                           (language, date_start,date_end,)) 
-
-        return [JobAd.create(dict(zip(self._db_columns, db_entry))) 
+        
+        results =  [JobAd.create(dict(zip(self._db_columns, db_entry))) 
                 for db_entry in c.fetchall()]
+
+        return results
 
     def update_ads(self, job_ads):
         """Updates existing job ads.
 
         Arguments
         ----------
-        job_ads : list
-            List of :class:`JobAd` instances. See :class:`JobAdDB` description 
-            for details.
+        job_ads : list[:class:`JobAd`]
+            List of :class:`JobAd` instances.
         """
-        if(self.conn == None):
+        if self._conn == None:
             self._connect_db()
-        c = self.conn.cursor()
+        c = self._conn.cursor()
 
         for ad in job_ads:
             c.execute("""
@@ -163,20 +166,19 @@ class JobAdDB:
             :language, :relevant, :recommendation)""", 
             ad)
 
-        self.conn.commit()
+        self._conn.commit()
 
     def update_ads_recommendation(self, job_ads):
         """Updates the recommendation of job ads.
 
         Arguments
         ----------
-        job_ads : list
-            List of :class:`JobAd` instances with id and recommendation defined. 
-            See :class:`JobAdDB` description for details.
+        job_ads : list[:class:`JobAd`]
+            List of :class:`JobAd` instances with id and recommendation defined.
         """
-        if(self.conn == None):
+        if self._conn == None:
             self._connect_db()
-        c = self.conn.cursor()
+        c = self._conn.cursor()
 
         for ad in job_ads:
             c.execute("""
@@ -186,20 +188,19 @@ class JobAdDB:
             ad)
         
         
-        self.conn.commit()
+        self._conn.commit()
 
     def update_ads_language(self, job_ads):
         """Updates the language of job ads.
 
         Arguments
         ----------
-        job_ads : list
-            List of :class:`JobAd` instances with id and language defined. 
-            See :class:`JobAdDB` description for details.
+        job_ads : list[:class:`JobAd`]
+            List of :class:`JobAd` instances with id and language defined.
         """
-        if(self.conn == None):
+        if self._conn == None:
             self._connect_db()
-        c = self.conn.cursor()
+        c = self._conn.cursor()
 
         for ad in job_ads:
             c.execute("""
@@ -208,13 +209,12 @@ class JobAdDB:
             WHERE id = :id""",
             ad)
         
-        self.conn.commit()
+        self._conn.commit()
 
     def get_classified_ads(self, 
             date_start=datetime.datetime.strptime("01-01-2015", "%d-%m-%Y"), 
-            date_end=datetime.date.today(), language="English", all_columns=0):
-        """
-        Retrieves classified job ads, i.e. ads with relevant set to 0 or 1, 
+            date_end=datetime.date.today(), language="English", all_columns=False):
+        """Retrieves classified job ads, i.e. ads with relevant set to 0 or 1, 
         from database.
         
         Arguments
@@ -225,19 +225,19 @@ class JobAdDB:
             Latest date of job ads. Default is present day. 
         language : str
             Language of job ads. Default is "English."
-        all_columns : int
-            Specifies which columns should be retrieved. If 1, all columns are
-            returned (see :class:`JobAdDB` description). If 0, only site, search 
-            term, title, description, language and relevant.
+        all_columns : bool
+            Specifies which columns should be retrieved. If True, all columns are
+            returned (see :class:`JobAdDB` description). If False, only site, search 
+            term, title, description, language and relevant are returned.
         Returns
         ----------
-        job_ads : list
+        job_ads : list[:class:`JobAd`]
             List of :class:`JobAd` instances.
         """
 
-        if(self.conn == None):
-            self.conn = sqlite3.connect(self.db_filename)
-        c = self.conn.cursor()
+        if self._conn == None:
+            self._conn = sqlite3.connect(self._db_filename)
+        c = self._conn.cursor()
 
         if all_columns == 0:
             columns = ["site", "searchterm" , "title", "description", 
@@ -257,23 +257,23 @@ class JobAdDB:
                                 AND date >= ? AND date <= ?""",
                                 (language, date_start, date_end))
 
-        return [JobAd.create(dict(zip(columns, db_entry))) 
+        results = [JobAd.create(dict(zip(columns, db_entry))) 
                 for db_entry in c.fetchall()]
 
-    def write_HTML_file(self, job_ads, filename):
-        """
-        Writes jobs ads to an HTML file.
+        return results
 
-        The HTML file can use a local css file, jobsearch.css, as a style
+    def write_HTML_file(self, job_ads, filename):
+        """Writes jobs ads to an HTML file.
+
+        The HTML file uses a local css file, jobsearch.css, as style
         sheet.
 
         Arguments
         ----------
-        job_ads : list
-            List of :class:`JobAd` instances. See :class:`JobAdDB` description
-            for details.
+        job_ads : list[:class:`JobAd`]
+            List of :class:`JobAd` instances.
         filename : str
-            Name of file to write to. Any existing file is overwritten.
+            Name of file to write. Any existing file is overwritten.
         """
         row_number = 0
         html_start = """<!DOCTYPE HTML><html><head>
@@ -325,12 +325,10 @@ class JobAdDB:
         file.close()
 
     def write_CSV_file(self, job_ads, filename):
-        """
-        Writes jobs ads to a CSV file (Excel style).
+        """Writes jobs ads to a CSV file (Excel style).
 
-        job_ads : list
-            List of :class:`JobAd` instances. See :class:`JobAdDB` description
-            for details.
+        job_ads : list[:class:`JobAd`]
+            List of :class:`JobAd` instances.
         filename : str
             Name of file to write to. Any existing file is overwritten.
         """
@@ -345,10 +343,6 @@ class JobAdDB:
                 ad[key] for key in ["searchterm", "site", "title", "description", 
                                     "date", "url", "language", "relevant", 
                                     "recommendation"]])
-                
-                #[db_entry[1], db_entry[0], 
-                #db_entry[3], db_entry[5], db_entry[6], db_entry[4], db_entry[7], 
-                #db_entry[8], db_entry[9]])
         file.close()
 
 

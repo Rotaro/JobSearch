@@ -21,7 +21,7 @@ class JobAdParser(HTMLParser, metaclass=abc.ABCMeta):
       should be called.
 
     """
-
+    #list of site names for implemented parsers
     parsers_impl = ['indeed', 'duunitori', 'monster']
 
     def __init__(self):
@@ -52,13 +52,12 @@ class JobAdParser(HTMLParser, metaclass=abc.ABCMeta):
     def get_job_ads(self):
         """Returns parsed job ads. 
        
-        Job ads are stored as a list of dictionaries. Each dictionary has keys
-        for database columns id, title, url and description (see :class:`JobAdDB` 
-        description for details).
+        Job ads are stored as a list of :class:`JobAd` instances. Each
+        instance has id, title, url and description set.
 
         Returns
         ----------
-        job_ads : list
+        job_ads : list[:class:`JobAd`]
             List of :class:`JobAd` instances.
         """
         return self._job_ads
