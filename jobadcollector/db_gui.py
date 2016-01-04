@@ -29,7 +29,7 @@ class JobAdGUI(tk.Frame):
         #use ordered dictionary for grid display 
         self.ad_storage = OrderedDict()
         for entry in db_data:
-            self.ad_storage[entry['id']] = [entry[column] for column in self.db_data_columns]
+            self.ad_storage[entry['id']] = [entry[column] for column in self._db_data_columns]
         
         #init window, canvas needed for scrollbars
         self.parent = tk.Tk() #=root
@@ -96,7 +96,6 @@ class JobAdGUI(tk.Frame):
         i=1
         for id in self.ad_storage:
             current_row = []
-            print(self.ad_storage[id][8])
             #if not classified
             if (self.ad_storage[id][8] == None):
                 for column in range(0, len(self.ad_storage[id])):
@@ -134,11 +133,7 @@ class JobAdGUI(tk.Frame):
                         label.grid(row=i, column=column, sticky="nsew", padx=1, pady=1)
                     current_row.append(label)
                 self.frame._widgets.append(current_row)
-                print(i)
                 i = i + 1
-        print(self.parent.winfo_width())
-        print(self.frame.winfo_width())
-        print(self.canvas.winfo_width())
 
     def onFrameConfigure(self, event):
         """Reset the scroll region to encompass the inner frame.

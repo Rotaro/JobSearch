@@ -265,6 +265,9 @@ class JobAdClassification:
         """
         
         #modify structure to type {column:[rows]}   
+        if len(job_ads) == 0:
+            raise Exception("No job ads to convert to R dataframe.")
+
         job_ads_dataf = {}
         for column in include_columns:
             job_ads_dataf[column] = [self._remove_diacritics(ad[column]) 

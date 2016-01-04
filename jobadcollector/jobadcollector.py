@@ -170,7 +170,7 @@ class JobAdCollector:
         gui = db_gui.JobAdGUI(datab.get_ads(date_start, date_end))
         gui.mainloop()
         new_data = gui.ad_storage #dictionary with ids as keys
-        new_data_dict = [JobAd.create(dict(zip(gui.db_data_columns, new_data[id])))
+        new_data_dict = [JobAd.create(dict(zip(gui._db_data_columns, new_data[id])))
                          for id in new_data]
         
         datab.update_ads(new_data_dict)
