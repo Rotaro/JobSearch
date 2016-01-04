@@ -5,22 +5,25 @@ Command Line Interface
 
 What is it?
 -------------
-A command line interface is provided for operating the program found in the module 
-jobad_cmdline.py. The interface has the following functionalities:
+A command line interface is provided for operating :term:`JobAdCollector`. The code for the 
+interface can be found in the module jobad_cmdline.py. 
 
-- Parses search terms from a text file with terms separated by new lines (UTF-8 encoding).
+To make batch searches easier, the command line can parse search terms from a text file where 
+search terms are separated by new lines (UTF-8 encoding).
 
-  .. code-block:: none
-  
-     search term 1
-     search term 2
-     ....
+   Example of search term file:
+
+   .. code-block:: none
+
+      dream job
+      great job
+      ....
 
 To access the interface, run :term:`JobAdCollector` as a script:
 
-.. code-block:: none
+   .. code-block:: none
 
-   python -m jobadcollector 
+      python -m jobadcollector 
    
 Help can always be accessed using the -h flag. See the next section for a list of options.
 
@@ -97,5 +100,3 @@ Command Line Options
       .. code-block:: none
          
 	 python -m jobadcollector <db_name> Rfunc <my_search_terms> Rfuncsearch <language> <input_name>
-  
-Additional help can be found by using the -h flag.
