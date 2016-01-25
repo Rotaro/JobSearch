@@ -43,11 +43,15 @@ class JobAdParser(HTMLParser, metaclass=abc.ABCMeta):
             Search term for job ad site.
         """
         url = self._generate_URL(search_term)
-        url_req = urllib.request.urlopen(url)
-        encoding = url_req.headers.get_content_charset()
-        url_req_text = re.sub("\s+", " ", url_req.read().decode(encoding))
-        url_req_text = re.sub("(&nbsp;)+", " ", url_req_text)
-        self.feed(url_req_text)
+        try:
+            url_req = urllib.request.urlopen(url)
+            encoding = url_req.headers.get_content_charset()
+            url_req_text = re.sub("\s+", " ", url_req.read().decode(encoding))
+            url_req_text = re.sub("(&nbsp;)+", " ", url_req_text)
+            self.feed(url_req_text)
+        except urllib.error.HTTPError as e:
+            print("Failed to retrieve %s from %s." % 
+                  (search_term, type(self).__name__), e)
    
     def get_job_ads(self):
         """Returns parsed job ads. 
