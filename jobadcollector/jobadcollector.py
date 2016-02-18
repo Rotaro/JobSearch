@@ -76,9 +76,11 @@ class JobAdCollector:
                 monster_parser = parsers.MonsterParser()
                 indeed_parser = parsers.IndeedParser()
                 duunitori_parser = parsers.DuunitoriParser()
+                oikotie_parser = parsers.OikotieParser()
                 indeed_parser.parse(search_term)
                 monster_parser.parse(search_term)
                 duunitori_parser.parse(search_term)
+                oikotie_parser.parse(search_term)
                 #add site and search term to job ads (modifies JobAd instances!)
                 for job_ad in indeed_parser.get_job_ads():
                     job_ad.update({'site': 'indeed', 'searchterm': search_term}) 
@@ -89,6 +91,9 @@ class JobAdCollector:
                 for job_ad in duunitori_parser.get_job_ads():
                     job_ad.update({'site': 'duunitori', 'searchterm': search_term}) 
                 datab.store_ads(duunitori_parser.get_job_ads())
+                for job_ad in oikotie_parser.get_job_ads():
+                    job_ad.update({'site': 'oikotie', 'searchterm': search_term}) 
+                datab.store_ads(oikotie_parser.get_job_ads())
                 time.sleep(random.randint(3,5))
 
 

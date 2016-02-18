@@ -22,7 +22,7 @@ class JobAdParser(HTMLParser, metaclass=abc.ABCMeta):
 
     """
     #list of site names for implemented parsers
-    parsers_impl = ['indeed', 'duunitori', 'monster']
+    parsers_impl = ['indeed', 'duunitori', 'monster', 'oikotie']
 
     def __init__(self):
         super(JobAdParser, self).__init__(convert_charrefs=True)
@@ -159,7 +159,7 @@ class MonsterParser(JobAdParser):
         search_term : str
             Search term to generate URL for.
         """
-        return "http://hae.monster.fi/ty%%C3%%B6paikkoja/?q=%s&cy=fi" % quote_plus(search_term)
+        return "http://hae.monster.fi/tyopaikkoja/?q=%s&cy=fi" % quote_plus(search_term)
 
     def handle_starttag(self, tag, attrs):
         if (self._job != 1 and tag == "div" and ('class', 'jobTitleContainer') in attrs):
@@ -248,3 +248,73 @@ class DuunitoriParser(JobAdParser):
         elif(self._job_list == 1 and self._job == 1 and self._title_added == 0):
             self._additional = self._additional + " " + data.strip()
 
+class OikotieParser(JobAdParser):
+    """Subclass of :class:`JobAdParser`. Implementation of parsing for Oikotie.fi.
+    """
+
+    def __init__(self):
+        super(OikotieParser, self).__init__()
+        self._job_list = 0 #inside job ad list element
+        self._job = 0 #inside job ad element
+        self._job_title = 0 #inside job title element
+        self._job_descrip = 0 #inside job description element
+        self._add = 0 #parsing done
+
+    def _generate_URL(self, search_term):
+        """Generates URL for search term for oikotie.fi.
+
+        Arguments
+        ----------
+        search_term : str
+            Search term to generate URL for.
+        """
+        search_term = search_term.replace(" ", "%20")
+        
+        return "https://tyopaikat.oikotie.fi/?sijainti[101]=101&jq=%s&sort_by=score" % quote_plus(search_term)
+
+    def handle_starttag(self, tag, attrs):
+        if (tag == "ul" and ('class', 'joblist') in attrs):
+            #start of job list
+            self._job_list = 1
+        elif (self._job_list == 1 and tag == "li" and 
+              self._job == 0):
+            #start of job ad
+            self._job = 1
+        elif (self._job == 1 and tag == "a" and 
+              ("class", "list-link joblisting-wrapper") in attrs):
+            #id and url
+            for attr in attrs:
+                if (attr[0] == "href"):
+                    self._url = attr[1]
+                elif (attr[0] == "id"):
+                    self._id = attr[1]
+        elif (self._job == 1 and tag == "h4" and 
+              ("class", "job-title") in attrs):
+            self._job_title = 1
+        elif (self._job == 1 and tag == "h6" and 
+              ("class", "metadata") in attrs):
+            self._job_title = 0
+            self._job_descrip = 1
+        elif (self._job_descrip == 1 and tag == "div" and
+              ("class", "action-wrap as") in attrs):
+            #end of job ad
+            self._save_job_ad()
+            self._title = ""
+            self._id = ""
+            self._url = ""
+            self._additional = ""
+            self._job_title = 0
+            self._job_descrip = 0
+            self._job = 0
+            
+
+    def handle_endtag(self, tag):
+        if (self._job_list == 1 and tag == "ul"):
+            #end of job ad list
+            self._job_list = 0
+
+    def handle_data(self, data):
+         if (self._job_title == 1):
+            self._title = self._title + " " +  data.strip()
+         elif (self._job_descrip == 1):
+            self._additional = self._additional + " " + data.strip()

@@ -4,13 +4,5 @@ parsers
 ==========================================
 
 .. automodule:: jobadcollector.parsers
-.. currentmodule:: jobadcollector.parsers
+   :members:
 
-.. autoclass:: JobAdParser
-   :members:
-.. autoclass:: IndeedParser
-   :members:
-.. autoclass:: MonsterParser
-   :members:
-.. autoclass:: DuunitoriParser
-   :members:

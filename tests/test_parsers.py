@@ -10,6 +10,7 @@ class ParsersTestCase(unittest.TestCase):
         self.dtp = parsers.DuunitoriParser()
         self.mp = parsers.MonsterParser()
         self.ip = parsers.IndeedParser()
+        self.op = parsers.OikotieParser()
         self.search_terms = [("analyst", "analyst"), 
                              ("osa-aikainen", "osa-aikainen"),
                              ("työhyvinvointi", "ty%C3%B6hyvinvointi")]
@@ -27,7 +28,7 @@ class ParsersTestCase(unittest.TestCase):
         """
         for search_term in self.search_terms:
             url = self.mp._generate_URL(search_term[0])
-            self.assertEqual(url, "http://hae.monster.fi/ty%C3%B6paikkoja/?q=" + search_term[1] + "&cy=fi")
+            self.assertEqual(url, "http://hae.monster.fi/tyopaikkoja/?q=" + search_term[1] + "&cy=fi")
 
     def test_Indeed_URLGenerator(self):
         """Test proper Indeed URL is generated.
@@ -37,7 +38,13 @@ class ParsersTestCase(unittest.TestCase):
             self.assertEqual(url, "http://www.indeed.fi/jobs?as_and=" +  search_term[1] + 
                                   "&as_phr=&as_any=&as_not=&as_ttl=&as_cmp=&jt=all&st=&radius=" +
                                   "50&l=Helsinki&fromage=any&limit=50&sort=date&psf=advsrch")
-        
+    def test_Oikotie_URLGenerator(self):
+        """Test proper Oikotie URL is generated.
+        """
+        for search_term in self.search_terms:
+            url = self.op._generate_URL(search_term[0])
+            self.assertEqual(url, "https://tyopaikat.oikotie.fi/?sijainti[101]=101&jq="+ search_term[1] + "&sort_by=score")
+
     def test_Duunitoriparser(self):
         """Test Duunitori parser produces the correct fields.
         """
@@ -94,6 +101,26 @@ class ParsersTestCase(unittest.TestCase):
                 self.assertTrue(ad[key] != "")
                 par_url = urllib.parse.urlparse(ad["url"])
                 self.assertIn("indeed", par_url.netloc)
+            if i == 0:
+                #print example of job ad parsed
+                i = i + 1
+                print(str([ad[key] for key in self.job_ad_keys]).encode("unicode_escape"))
+
+    def test_Oikotieparser(self):
+        """Test Oikotie parser produces the correct fields.
+        """
+        self.op.parse(self.search_terms[0][0])
+        results = self.op.get_job_ads()
+        if len(results) == 0:
+            raise AssertionError("No job ads parsed.")
+        i = 0
+        for ad in results:
+            for key in self.job_ad_keys:
+                self.assertIn(key, ad.keys())
+                self.assertIsInstance(ad[key], str)
+                self.assertTrue(ad[key] != "")
+                par_url = urllib.parse.urlparse(ad["url"])
+                self.assertIn("oikotie", par_url.netloc)
             if i == 0:
                 #print example of job ad parsed
                 i = i + 1

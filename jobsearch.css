@@ -17,6 +17,9 @@ tr[origsite=monster]  {
 tr[origsite=duunitori]  {
     background-color:#4fc3f7;
 }
+tr[origsite=oikotie]  {
+    background-color:#015700;
+}
 tr[origsite=indeed]:hover {
     background-color:#b3e5fc;
 }
@@ -26,6 +29,9 @@ tr[origsite=monster]:hover {
 }
 tr[origsite=duunitori]:hover {
     background-color:#03a9f4;
+}
+tr[origsite=oikotie]:hover {
+    background-color:#19e502;
 }
 .date {
     width:6%;
