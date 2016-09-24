@@ -1,6 +1,7 @@
 ﻿import datetime
 import random
 import time
+import asyncio
 
 import jobadcollector.parsers as parsers 
 import jobadcollector.db_controls as db_controls 
@@ -9,14 +10,15 @@ import jobadcollector.db_gui as db_gui
 from jobadcollector.job_ad import JobAd
 
 try: 
-    #Status of import of classification module. If import fails, functions 
-    #using classification will be disabled (i.e. return empty).
+    # Status of import of classification module. If import fails, functions
+    # using classification will be disabled (i.e. return empty).
     CLASSIFICATION = True
     import jobadcollector.classification as classification
 except ImportError:
     CLASSIFICATION = False
     print("""Classification module import failed. Classification functions 
              are disabled.""")
+
 
 class JobAdCollector:
     """Operation of job ad collections.
@@ -41,16 +43,16 @@ class JobAdCollector:
 
     _sites = parsers.JobAdParser.parsers_impl
 
-    def __init__(self, search_terms, db_name, 
+    def __init__(self, search_terms, db_name,
                  Rlibpath="C:/Users/SuperSSD/Documents/R/win-library/3.2"):
-        if (not isinstance(search_terms, list) or db_name == ""):
+        if not isinstance(search_terms, list) or db_name == "":
             raise ValueError("Invalid arguments for JobAdCollector. search_terms \
                               should be a list and db_name length larger than 0.")
         self._search_terms = search_terms
         self._db_name = db_name
         self._Rlibpath = ""
         self._classification = CLASSIFICATION
-        if self._classification == True:
+        if self._classification is True:
             self._Rlibpath = Rlibpath
 
     def start_search(self, search_term=None):
@@ -66,36 +68,28 @@ class JobAdCollector:
         """
         random.seed(1222)
         datab = db_controls.JobAdDB(self._db_name)
-        if (search_term != None):
-            searchables = [search_term]
-        else:
-            searchables = self._search_terms
-        if isinstance(searchables, list):
-            for search_term in searchables:
-                print("Searching for \"%s\"." % search_term)
-                monster_parser = parsers.MonsterParser()
-                indeed_parser = parsers.IndeedParser()
-                duunitori_parser = parsers.DuunitoriParser()
-                oikotie_parser = parsers.OikotieParser()
-                indeed_parser.parse(search_term)
-                monster_parser.parse(search_term)
-                duunitori_parser.parse(search_term)
-                oikotie_parser.parse(search_term)
-                #add site and search term to job ads (modifies JobAd instances!)
-                for job_ad in indeed_parser.get_job_ads():
-                    job_ad.update({'site': 'indeed', 'searchterm': search_term}) 
-                datab.store_ads(indeed_parser.get_job_ads())
-                for job_ad in monster_parser.get_job_ads():
-                    job_ad.update({'site': 'monster', 'searchterm': search_term}) 
-                datab.store_ads(monster_parser.get_job_ads())
-                for job_ad in duunitori_parser.get_job_ads():
-                    job_ad.update({'site': 'duunitori', 'searchterm': search_term}) 
-                datab.store_ads(duunitori_parser.get_job_ads())
-                for job_ad in oikotie_parser.get_job_ads():
-                    job_ad.update({'site': 'oikotie', 'searchterm': search_term}) 
-                datab.store_ads(oikotie_parser.get_job_ads())
-                time.sleep(random.randint(3,5))
+        searchables = self._search_terms if not search_term else [search_term]
 
+        for search_term in searchables:
+            print("Searching for \"%s\"." % search_term)
+
+            # Initialize parsers
+            ps = [parsers.MonsterParser(),
+                  parsers.IndeedParser(),
+                  parsers.DuunitoriParser(),
+                  parsers.OikotieParser()]
+
+            # Search for job ads
+            loop = asyncio.get_event_loop()
+            tasks = [parser.parse(search_term) for parser in ps]
+            loop.run_until_complete(asyncio.gather(*tasks))
+
+            # Save job ads in database
+            for parser in ps:
+                datab.store_ads(parser.get_job_ads())
+
+            # Sleep for random time to avoid bombarding sites
+            time.sleep(random.uniform(0, 1))
 
     def output_results(self, date_start, date_end, output_name, output_type):
         """Outputs job ads from database as an HTML or CSV file.
@@ -119,16 +113,16 @@ class JobAdCollector:
         
         datab = db_controls.JobAdDB(self._db_name)
         print("Writing to %s from %s." % (output_name, self._db_name))
-        if (output_type == "html"):
+        if output_type == "html":
             datab.write_HTML_file(datab.get_ads(date_start, date_end), output_name)
-        elif (output_type == "csv"):
+        elif output_type == "csv":
             datab.write_CSV_file(datab.get_ads(date_start, date_end), output_name)
 
     def output_classified_results(self, 
                                   date_start=datetime.datetime.strptime(
-                                        "01-01-2015", "%d-%m-%Y"), 
-                               date_end=datetime.date.today(), language="English", 
-                               output_name="class.csv", output_type="csv"):
+                                        "01-01-2015", "%d-%m-%Y"),
+                                  date_end=datetime.date.today(), language="English",
+                                  output_name="class.csv", output_type="csv"):
         """Outputs classified job ads from the database as an HTML or CSV file. 
 
         All job ads between argument dates are included in the output.
@@ -150,9 +144,9 @@ class JobAdCollector:
         datab = db_controls.JobAdDB(self._db_name)
         ads = datab.get_classified_ads(date_start, date_end, language, 1)
         print("Writing to %s from %s." % (output_name, self._db_name))
-        if (output_type == "html"):
+        if output_type == "html":
             datab.write_CSV_file(ads, output_name)
-        elif (output_type == "csv"):
+        elif output_type == "csv":
             datab.write_CSV_file(ads, output_name)
 
     def classify_ads_GUI(self, date_start, date_end):
@@ -174,15 +168,14 @@ class JobAdCollector:
 
         gui = db_gui.JobAdGUI(datab.get_ads(date_start, date_end))
         gui.mainloop()
-        new_data = gui.ad_storage #dictionary with ids as keys
+        new_data = gui.ad_storage  # dictionary with ids as keys
         new_data_dict = [JobAd.create(dict(zip(gui._db_data_columns, new_data[id])))
                          for id in new_data]
         
         datab.update_ads(new_data_dict)
 
-    def train_model(self, language, date_start=datetime.datetime.strptime(
-                                        "01-01-2015", "%d-%m-%Y"), 
-                               date_end=datetime.date.today()):
+    def train_model(self, language, date_start=datetime.datetime.strptime("01-01-2015", "%d-%m-%Y"),
+                    date_end=datetime.date.today()):
         """Trains random forest model on classified job ads.
 
         All job ads between argument dates are included in the training. 
@@ -233,7 +226,7 @@ class JobAdCollector:
             included. If both date_start and date_end are None, all job ads in 
             the database are included.
         """
-        if (self._classification == False):
+        if not self._classification:
             raise EnvironmentError("Classification not enabled in JobAdCollector.")
                                     
         datab = db_controls.JobAdDB(self._db_name)
@@ -265,7 +258,7 @@ class JobAdCollector:
             included. If both date_start and date_end are None, all job ads in 
             the database are included.
         """
-        if (self._classification == False):
+        if not self._classification:
             raise EnvironmentError("Classification not enabled in JobAdCollector.")
                                       
         datab = db_controls.JobAdDB(self._db_name)
@@ -307,11 +300,11 @@ class JobAdCollector:
             :class:`JobAdClassification` instance with model set.    
         """
 
-        if (self._classification == False):
+        if not self._classification:
             raise EnvironmentError("Classification not enabled in JobAdCollector.")
 
-        JAC = classification.JobAdClassification(self._Rlibpath, 
-                                               self._search_terms, self._sites, language)
+        JAC = classification.JobAdClassification(self._Rlibpath,
+                                                 self._search_terms, self._sites, language)
         JAC.load_model(filename)
 
         return JAC

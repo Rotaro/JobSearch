@@ -20,7 +20,7 @@ class JobAd(dict):
       model)
 
     """
-    #columns allowed in JobAd instance
+    # columns allowed in JobAd instance
     _cols = ["site", "searchterm", "id", "title", "url", "description", "date",
              "language", "relevant", "recommendation"]
 
@@ -65,7 +65,6 @@ class JobAd(dict):
 
         return job_ad
 
-
     def columns_not_none(self, columns):
         """Checks that values of columns are not none.
         
@@ -81,7 +80,7 @@ class JobAd(dict):
         """
         not_none = True
         for col in columns:
-            if self[col] == None:
+            if self[col] is None:
                 return 0
 
         return not_none

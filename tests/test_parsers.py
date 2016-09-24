@@ -1,6 +1,8 @@
 import unittest
+import asyncio
 from jobadcollector import parsers
 import urllib.parse
+
 
 class ParsersTestCase(unittest.TestCase):
     """Class for testing parsers.
@@ -39,6 +41,7 @@ class ParsersTestCase(unittest.TestCase):
             self.assertEqual(url, "http://www.indeed.fi/jobs?as_and=" +  search_term[1] + 
                                   "&as_phr=&as_any=&as_not=&as_ttl=&as_cmp=&jt=all&st=&radius=" +
                                   "50&l=Helsinki&fromage=any&limit=50&sort=date&psf=advsrch")
+
     def test_Oikotie_URLGenerator(self):
         """Test proper Oikotie URL is generated.
         """
@@ -49,7 +52,9 @@ class ParsersTestCase(unittest.TestCase):
     def test_Duunitoriparser(self):
         """Test Duunitori parser produces the correct fields.
         """
-        self.dtp.parse(self.search_terms[0][0])
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(asyncio.gather(self.dtp.parse(self.search_terms[0][0])))
+
         results = self.dtp.get_job_ads()
         if len(results) == 0:
             raise AssertionError("No job ads parsed.")
@@ -62,15 +67,16 @@ class ParsersTestCase(unittest.TestCase):
                 par_url = urllib.parse.urlparse(ad["url"])
                 self.assertIn("duunitori", par_url.netloc)
             if i == 0:
-                #print example of job ad parsed
-                i = i + 1
+                # print example of job ad parsed
+                i += 1
                 print(str([ad[key] for key in self.job_ad_keys]).encode("unicode_escape"))
-        
-            
+
     def test_Monsterparser(self):
         """Test Monster parser produces the correct fields.
         """
-        self.mp.parse(self.search_terms[0][0])
+
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(asyncio.gather(self.mp.parse(self.search_terms[0][0])))
         results = self.mp.get_job_ads()
         if len(results) == 0:
             raise AssertionError("No job ads parsed.")
@@ -83,14 +89,15 @@ class ParsersTestCase(unittest.TestCase):
                 par_url = urllib.parse.urlparse(ad["url"])
                 self.assertIn("monster", par_url.netloc)
             if i == 0:
-                #print example of job ad parsed
-                i = i + 1
+                # print example of job ad parsed
+                i += 1
                 print(str([ad[key] for key in self.job_ad_keys]).encode("unicode_escape"))
 
     def test_Indeedparser(self):
         """Test Indeed parser produces the correct fields.
         """
-        self.ip.parse(self.search_terms[0][0])
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(asyncio.gather(self.ip.parse(self.search_terms[0][0])))
         results = self.ip.get_job_ads()
         if len(results) == 0:
             raise AssertionError("No job ads parsed.")
@@ -103,14 +110,15 @@ class ParsersTestCase(unittest.TestCase):
                 par_url = urllib.parse.urlparse(ad["url"])
                 self.assertIn("indeed", par_url.netloc)
             if i == 0:
-                #print example of job ad parsed
-                i = i + 1
+                # print example of job ad parsed
+                i += 1
                 print(str([ad[key] for key in self.job_ad_keys]).encode("unicode_escape"))
 
     def test_Oikotieparser(self):
         """Test Oikotie parser produces the correct fields.
         """
-        self.op.parse(self.search_terms[0][0])
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(asyncio.gather(self.op.parse(self.search_terms[0][0])))
         results = self.op.get_job_ads()
         if len(results) == 0:
             raise AssertionError("No job ads parsed.")
@@ -123,8 +131,8 @@ class ParsersTestCase(unittest.TestCase):
                 par_url = urllib.parse.urlparse(ad["url"])
                 self.assertIn("oikotie", par_url.netloc)
             if i == 0:
-                #print example of job ad parsed
-                i = i + 1
+                # print example of job ad parsed
+                i += 1
                 print(str([ad[key] for key in self.job_ad_keys]).encode("unicode_escape"))
 
 if __name__ == '__main__':
