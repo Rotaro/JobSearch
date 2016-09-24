@@ -1,13 +1,16 @@
 #JobAdCollector
 
-A simple program to combine job search results from several job advertisement sites.
+A simple program to search for job ads from several sites at once.
 
-Currently `JobAdCollector` has parsers for indeed.fi, monster.fi and duunitori.fi. 
-The program gathers job advertisements from these sites using keywords 
-provided. The results of the keyword searches are stored in a local sqlite 
-database, which can be viewed as an html or csv table. Additionally, users can classify 
+Currently `JobAdCollector` has parsers for indeed.fi, monster.fi, duunitori.fi and oikotie.fi. 
+The program gathers job advertisements using keyword searches on the sites. The results are stored 
+in a local sqlite database, which can be viewed as an html or csv table. Additionally, users can classify 
 job ads as relevant or not, which allows `JobAdCollector` to provide recommendations for new job
-ads using a machine learning model.
+ads using a decision tree model.
+
+## Dependencies
+      aiohttp
+      rpy2 (for classification of jobs ads only)
 
 
 ##Usage
