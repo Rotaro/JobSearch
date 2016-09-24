@@ -28,7 +28,8 @@ class ParsersTestCase(unittest.TestCase):
         """
         for search_term in self.search_terms:
             url = self.mp._generate_URL(search_term[0])
-            self.assertEqual(url, "http://hae.monster.fi/tyopaikkoja/?q=" + search_term[1] + "&cy=fi")
+            self.assertEqual(url, "http://www.monster.fi/tyopaikat/haku/?q=" + search_term[1] +
+                             "&where=P__C3__A4__C3__A4kaupunkiseutu__2C-Uusimaa")
 
     def test_Indeed_URLGenerator(self):
         """Test proper Indeed URL is generated.
